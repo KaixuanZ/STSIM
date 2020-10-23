@@ -43,13 +43,13 @@ class Dataset():
         # return a batch of data
         X1,X2,Y = [],[],[]
         for i in range(batchsize):
-            if self.cur == self.N:
-                self.cur = 0
-                break
             img1, img2, label = self._getdata()
             X1.append(img1)
             X2.append(img2)
             Y.append(label)
+            if self.cur == self.N:
+                self.cur = 0
+                break
 
         # N, C=1, H, W
         X1 = torch.stack(X1)
