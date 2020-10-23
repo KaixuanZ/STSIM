@@ -25,6 +25,7 @@ def stsim_features():
     pdb.set_trace()
 
 def test_stsim():
+    # test STSIM-1 and STSIM-2
     image_dir = 'data/scenes_distorted'
     label_file = 'data/huib_analysis_data_across_distortions.xlsx'
     device = torch.device('cuda:0')
@@ -34,11 +35,15 @@ def test_stsim():
     X1, X2, Y = dataset.getdata(batchsize)
 
     m_g = Metric(sp3Filters, device=device)
-    pred = m_g.STSIM_M(X1)
+    pred = m_g.STSIM(X1, X2)
+    corr = np.corrcoef(pred.cpu().numpy(), Y.cpu().numpy())[0, 1]
+    print("STSIM-1:",np.abs(corr))  # 0.924
 
-    print(np.corrcoef(pred.cpu().numpy(), Y.cpu().numpy()))
-    import pdb;
-    pdb.set_trace()
+    pred = m_g.STSIM2(X1, X2)
+    corr = np.corrcoef(pred.cpu().numpy(), Y.cpu().numpy())[0, 1]
+    print("STSIM-2:",np.abs(corr))  # 0.926
 
+
+test_stsim()
 
 stsim_features()
