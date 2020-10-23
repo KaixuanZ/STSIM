@@ -14,7 +14,9 @@ Learning the parameters by data & label (Mahalanobis distance, LFDA, and Linear 
 
 ### Kaixuan
 
-Compare with other recent year's paper (deep learning based)
+Comparing with other recent year's papers (deep learning based)
+
+Comparing these methods on other datasets (if needed)
 
 
 ## Current Progress:
