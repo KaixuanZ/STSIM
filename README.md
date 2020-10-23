@@ -1,12 +1,22 @@
 # STSIM
 
-Implementation of Pytorch version of STSIM metrics. Still working on this repo.
+Implementation of Pytorch version of STSIM metrics.
+
+# To-do List:
+
+Estimating the parameters of STSIM-M by using the variance of each feature in training set
+
+Learning the parameters by data & label (Mahalanobis distance, LFDA, and Linear regression)
+
+Compare with other recent year's paper (deep learning based)
 
 
 ## Current Progress:
 Steerable pyramid filters finished.
 
 STSIM-M feature extraction finished.
+
+STSIM-1 global, STSIM-2 global finished
 
 ## Reference Github Repo:
 [steerable pyramid filters](https://github.com/LabForComputationalVision/pyPyrTools)
