@@ -2,13 +2,17 @@
 
 Implementation of Pytorch version of STSIM metrics.
 
-# To-do List:
+## To-do List:
 
 Understand which label to use and why
+
+### Zhaochen
 
 Estimating the parameters of STSIM-M by using the variance of each feature in training set
 
 Learning the parameters by data & label (Mahalanobis distance, LFDA, and Linear regression)
+
+### Kaixuan
 
 Compare with other recent year's paper (deep learning based)
 
