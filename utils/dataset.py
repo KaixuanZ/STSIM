@@ -1,5 +1,5 @@
-import pandas as pd
 import cv2
+import pandas as pd
 import os
 import torch
 
@@ -19,14 +19,15 @@ class Dataset():
         :param label_file:
         :return: [10 rows, 10 columns], [i-th distortion, j-th texture], last row is the original image (9 distortions + 1 original)
         '''
-        df = pd.read_excel(label_file)
-        return df.iloc[11:21,:10].to_numpy()
+        df = pd.read_excel(label_file, header=None)
+        #return df.iloc[12:21,:10].to_numpy()
+        return df.iloc[:9,:10].to_numpy()
 
     def _getdata(self):
         '''
         :return: original image, distorted image, label
         '''
-        img = cv2.imread(self.image_paths[self.cur], 0)
+        img = cv2.imread(self.image_paths[self.cur], 0)/255
         H,_ = img.shape
         img1 = img[:H//2, :]
         img2 = img[H//2:, :]
@@ -36,7 +37,7 @@ class Dataset():
         label = self.labels[j, i]
 
         self.cur += 1
-        return torch.from_numpy(img1).float().to(self.device), torch.from_numpy(img2).float().to(self.device), torch.tensor(label).to(self.device)
+        return torch.from_numpy(img1).double().to(self.device), torch.from_numpy(img2).double().to(self.device), torch.tensor(label).to(self.device)
 
     def getdata(self, batchsize):
         # return a batch of data
@@ -67,6 +68,8 @@ def test():
 
     batchsize = 32
     X1, X2, Y = dataset.getdata(batchsize)
+
+
     import pdb;
     pdb.set_trace()
 

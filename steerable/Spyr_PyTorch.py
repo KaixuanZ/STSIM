@@ -1,19 +1,17 @@
 # pytorch implementation of steerable pyramid filter
 import cv2
-from sp3Filters import sp3Filters
-
 import torch
 import torch.nn.functional as F
 
 
-class SFpyr_PyTorch(object):
+class Spyr_PyTorch(object):
 
-    def __init__(self, filter, height=5, nbands=4, subsampling=True, device=None, wsize = 128):
+    def __init__(self, filter, height=5, nbands=4, sub_sample=True, device=None, wsize = 128):
         '''
         :param filter: a function which returns filter parameters
         :param height:
         :param nbands:
-        :param subsampling:
+        :param sub_sample: it shoule be Ture, haven't implemented the non-downsampling version
         :param device:
         :param wsize: window size
         '''
@@ -23,7 +21,7 @@ class SFpyr_PyTorch(object):
 
         self.filter = filter(self.device)    # parameters of steerable filters
         self.wsize = wsize
-        self.subsampling = subsampling
+        self.sub_sample = sub_sample
 
     def buildSpyr(self, img):
         '''
@@ -48,7 +46,7 @@ class SFpyr_PyTorch(object):
             coeffs.append(self._conv2d(lo0, bfilts[ori]))
 
         lo = self._conv2d(lo0, self.filter['lofilt'])
-        if self.subsampling:    # sub-sampling
+        if self.sub_sample:    # sub-sampling
             lo = lo[:,:,::2,::2]    # same as F.interpolate
 
         return [coeffs] + self._buildSpyrLevs(lo, height-1)
@@ -64,11 +62,16 @@ class SFpyr_PyTorch(object):
         # F.conv2d
         return F.conv2d(img, kernel)
 
+    def getlist(self, coeff):
+        straight = [bands for scale in coeff[1:-1] for bands in scale]
+        straight = [coeff[0]] + straight + [coeff[-1]]
+        return straight
+
 
 if __name__ == "__main__":
     device = torch.device('cuda:0')
-
-    s = SFpyr_PyTorch(sp3Filters, subsampling=False, device = device)
+    from sp3Filters import sp3Filters
+    s = Spyr_PyTorch(sp3Filters, sub_sample=False, device = device)
 
     image_path = '../data/scenes_distorted/0_0.tiff'
     img = cv2.imread(image_path, 0)

@@ -339,7 +339,7 @@ def sp3Filters(device):
                    4.0110000555E-5, 4.6670897864E-3, 8.0871898681E-3,
                    1.4807609841E-2, 8.6204400286E-3, -3.1221499667E-3]]).T)
     for key in filters:
-        filters[key] = filters[key].to(device).unsqueeze(0).unsqueeze(0)    # [Output=1, Input=1, H, W]
+        filters[key] = filters[key].double().to(device).unsqueeze(0).unsqueeze(0)    # [Output=1, Input=1, H, W]
     filters['bfilts'] = torch.unbind(filters['bfilts'].reshape(1,1,9,9,4), dim = -1)
 
     return filters
