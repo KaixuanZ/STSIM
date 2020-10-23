@@ -21,7 +21,8 @@ class Dataset():
         '''
         df = pd.read_excel(label_file, header=None)
         #return df.iloc[12:21,:10].to_numpy()
-        return df.iloc[:9,:10].to_numpy()
+        #return df.iloc[:9,:10].to_numpy()
+        return df.iloc[31:40,:10].to_numpy()
 
     def _getdata(self):
         '''
