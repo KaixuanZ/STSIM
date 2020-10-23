@@ -12,3 +12,4 @@ STSIM-M feature extraction finished.
 [steerable pyramid filters](https://github.com/LabForComputationalVision/pyPyrTools)
 
 ## Reference Papers:
+[STSIM](file:///tmp/mozilla_zkx0010/zujovic_tip13.pdf)
