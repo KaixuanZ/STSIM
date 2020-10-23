@@ -17,7 +17,7 @@ class Dataset():
     def getlabels(self, label_file):
         '''
         :param label_file:
-        :return: [10 rows, 10 columns], [i-th distortion, j-th texture], last row is the original image (9 distortions + 1 original)
+        :return: [i-th distortion, j-th texture]
         '''
         df = pd.read_excel(label_file, header=None)
         #return df.iloc[12:21,:10].to_numpy()
