@@ -12,7 +12,7 @@ STSIM-M feature extraction finished.
 [steerable pyramid filters](https://github.com/LabForComputationalVision/pyPyrTools)
 
 ## Reference Paper:
-[STSIM](file:///tmp/mozilla_zkx0010/zujovic_tip13.pdf)
+[STSIM](http://users.eecs.northwestern.edu/~pappas/papers/zujovic_tip13.pdf)
 
 ## Demo:
 [main.py](https://github.com/KaixuanZ/STSIM/blob/master/main.py)
