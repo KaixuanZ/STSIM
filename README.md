@@ -13,3 +13,6 @@ STSIM-M feature extraction finished.
 
 ## Reference Paper:
 [STSIM](file:///tmp/mozilla_zkx0010/zujovic_tip13.pdf)
+
+## Demo:
+[main.py](https://github.com/KaixuanZ/STSIM/blob/master/main.py)
