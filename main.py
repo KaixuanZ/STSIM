@@ -14,13 +14,14 @@ def Borda_rule(pred, label, N):
     :param N: number of distortions per texture
     :return: Pearson's corr with Borda's rule
     '''
-    coeff = 0
+    coeffs = np.zeros(label.shape[-1])
     pred = pred.reshape([N,-1]).cpu().numpy()
-    label = label.reshape([N,-1]).cpu().numpy()
+    label = label.reshape([N,-1,label.shape[-1]]).cpu().numpy()
     for i in range(pred.shape[1]):
-        corr = np.corrcoef(pred[:,i], label[:,i])[0,1]
-        coeff += np.abs(corr)
-    return coeff/pred.shape[1]
+        for j in range(label.shape[-1]):
+            corr = np.corrcoef(pred[:,i], label[:,i,j])[0,1]
+            coeffs[j] += np.abs(corr)
+    return coeffs/pred.shape[1]
 
 
 def stsim_features():
@@ -52,10 +53,10 @@ def test_stsim():
 
     m_g = Metric(sp3Filters, device=device)
     pred = m_g.STSIM(X1, X2)
-    print("STSIM-1 (Borda's rule):",Borda_rule(pred, Y, 9)) # 0.896
+    print("STSIM-1 (Borda's rule):",Borda_rule(pred, Y, 9)) # [0.370, 0.368, 0.896]
 
     pred = m_g.STSIM2(X1, X2)
-    print("STSIM-2 (Borda's rule):", Borda_rule(pred, Y, 9)) # 0.886
+    print("STSIM-2 (Borda's rule):", Borda_rule(pred, Y, 9)) # [0.353, 0.331, 0.886]
 
     import pdb;
     pdb.set_trace()
