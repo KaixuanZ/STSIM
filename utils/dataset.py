@@ -14,19 +14,20 @@ class Dataset():
         :param label_id: 0,1,2 three version of scores
         '''
         self.image_paths = [os.path.join(image_dir,path) for path in sorted(clean_names(os.listdir(image_dir)))]
-        self.labels = self.getlabels(label_file, label_id)
+        self.label_file = label_file
+        self.labels = self.getlabels(label_id)
         self.N = len(self.image_paths)
         self.cur = 0
         self.device = device
 
 
-    def getlabels(self, label_file, label_id):
+    def getlabels(self, label_id):
         '''
         :param label_file:
         :param id: the id of label matrix
         :return: [i-th distortion, j-th texture]
         '''
-        df = pd.read_excel(label_file, header=None)
+        df = pd.read_excel(self.label_file, header=None)
         if label_id==0:
             return df.iloc[:9,:10].to_numpy()
         elif label_id==1:
