@@ -8,11 +8,11 @@ import torch
 
 def Borda_rule(pred, label, N):
     '''
-    expectation of Person's corr over all textures
+    expectation of Pearson's corr over all textures
     :param pred: values predicted by the metric
     :param label: ground truth label
     :param N: number of distortions per texture
-    :return: Person's corr with Borda's rule
+    :return: Pearson's corr with Borda's rule
     '''
     coeff = 0
     pred = pred.reshape([N,-1]).cpu().numpy()
