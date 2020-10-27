@@ -6,24 +6,33 @@ import torch
 clean_names = lambda x: [i for i in x if i[0] != '.']
 
 class Dataset():
-    def __init__(self, image_dir, label_file, device):
+    def __init__(self, image_dir, label_file, device, label_id=2):
+        '''
+        :param image_dir:
+        :param label_file:
+        :param device:
+        :param label_id: 0,1,2 three version of scores
+        '''
         self.image_paths = [os.path.join(image_dir,path) for path in sorted(clean_names(os.listdir(image_dir)))]
-        self.labels = self.getlabels(label_file)
+        self.labels = self.getlabels(label_file, label_id)
         self.N = len(self.image_paths)
         self.cur = 0
         self.device = device
 
 
-    def getlabels(self, label_file):
+    def getlabels(self, label_file, label_id):
         '''
         :param label_file:
         :param id: the id of label matrix
         :return: [i-th distortion, j-th texture]
         '''
         df = pd.read_excel(label_file, header=None)
-        #return df.iloc[:9,:10].to_numpy()
-        #return df.iloc[12:21,:10].to_numpy()
-        return df.iloc[31:40,:10].to_numpy()
+        if label_id==0:
+            return df.iloc[:9,:10].to_numpy()
+        elif label_id==1:
+            return df.iloc[12:21,:10].to_numpy()
+        elif label_id==2:
+            return df.iloc[31:40,:10].to_numpy()
 
     def _getdata(self, pair = True):
         '''
