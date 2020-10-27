@@ -55,7 +55,7 @@ class Dataset():
         X1,X2,Y = [],[],[]
         for i in range(batchsize):
             if augment:
-                img, label = self._getdata(pair=False)
+                img1, label = self._getdata(pair=False)
             else:
                 img1, img2, label = self._getdata()
                 X2.append(img2)
@@ -82,9 +82,15 @@ def test():
     device = torch.device('cuda:0')
     dataset = Dataset(image_dir, label_file, device)
 
-    batchsize = 32
-    X1, X2, Y = dataset.getdata(batchsize)
+    batchsize = 1000
+    X1, X2, Y = dataset.getdata(batchsize, augment = False)
 
+    import pdb;
+    pdb.set_trace()
+
+    image_dir = '../data/training_images'
+    dataset = Dataset(image_dir, label_file, device)
+    X1, Y = dataset.getdata(batchsize, augment = True)
 
     import pdb;
     pdb.set_trace()
