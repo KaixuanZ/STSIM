@@ -3,8 +3,10 @@ import numpy as np
 from steerable.sp3Filters import sp3Filters
 from utils.dataset import Dataset
 from metrics.STSIM import Metric
+from metrics.DISTS_pt import *
 
 import torch
+import torch.nn.functional as F
 
 def Borda_rule(pred, label, N):
     '''
@@ -55,11 +57,36 @@ def test_stsim():
     pred = m_g.STSIM(X1, X2)
     print("STSIM-1 (Borda's rule):",Borda_rule(pred, Y, 9)) # [0.370, 0.368, 0.896]
 
-    pred = m_g.STSIM2(X1, X2)
+    pred = mmodels_g.STSIM2(X1, X2)
     print("STSIM-2 (Borda's rule):", Borda_rule(pred, Y, 9)) # [0.353, 0.331, 0.886]
 
     import pdb;
     pdb.set_trace()
+
+def test_DISTS():
+    # test STSIM-1 and STSIM-2
+    image_dir = 'data/scenes_distorted'
+    label_file = 'data/huib_analysis_data_across_distortions.xlsx'
+    device = torch.device('cuda:0')
+    dataset = Dataset(image_dir, label_file, device)
+
+    batchsize = 1000
+    X1, X2, Y = dataset.getdata(batchsize)
+    X1 = F.interpolate(X1, size=256).float()
+    X2 = F.interpolate(X2, size=256).float()
+    model = DISTS(prefix = 'weights').to(device)
+
+    pred = []
+    for i in range(9):
+        pred.append( model(X1[i*10:(i+1)*10],X2[i*10:(i+1)*10]) )
+
+    pred = torch.cat(pred, dim=0).detach()
+    print("DISTS without training (Borda's rule):", Borda_rule(pred, Y, 9))  # [0.681, 0.693, 0.645]
+
+    import pdb;
+    pdb.set_trace()
+
+test_DISTS()
 
 test_stsim()
 
