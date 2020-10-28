@@ -31,6 +31,8 @@ Test with Borda's rule.
 ## Reference Github Repo:
 [steerable pyramid filters](https://github.com/LabForComputationalVision/pyPyrTools)
 
+[DISTS](https://github.com/dingkeyan93/DISTS)
+
 ## Reference Paper:
 [Structural Texture Similarity Metrics for Image Analysis and Retrieval](http://users.eecs.northwestern.edu/~pappas/papers/zujovic_tip13.pdf)
 
