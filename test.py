@@ -57,14 +57,13 @@ def test_stsim():
     pred = m_g.STSIM(X1, X2)
     print("STSIM-1 (Borda's rule):",Borda_rule(pred, Y, 9)) # [0.370, 0.368, 0.896]
 
-    pred = mmodels_g.STSIM2(X1, X2)
+    pred = m_g.STSIM2(X1, X2)
     print("STSIM-2 (Borda's rule):", Borda_rule(pred, Y, 9)) # [0.353, 0.331, 0.886]
 
     import pdb;
     pdb.set_trace()
 
-def test_DISTS():
-    # test STSIM-1 and STSIM-2
+def test_DISTS(model = None):
     image_dir = 'data/scenes_distorted'
     label_file = 'data/huib_analysis_data_across_distortions.xlsx'
     device = torch.device('cuda:0')
@@ -74,7 +73,8 @@ def test_DISTS():
     X1, X2, Y = dataset.getdata(batchsize)
     X1 = F.interpolate(X1, size=256).float()
     X2 = F.interpolate(X2, size=256).float()
-    model = DISTS(prefix = 'weights').to(device)
+    if model is None:
+        model = DISTS(prefix = 'weights').to(device)
 
     pred = []
     for i in range(9):
@@ -86,8 +86,9 @@ def test_DISTS():
     import pdb;
     pdb.set_trace()
 
-test_DISTS()
+if __name__ == '__main__':
+    test_DISTS()
 
-test_stsim()
+    test_stsim()
 
-stsim_features()
+    stsim_features()
