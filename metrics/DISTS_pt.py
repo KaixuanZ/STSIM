@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class L2pooling(nn.Module):
-    def __init__(self, filter_size=5, stride=2, channels=None, pad_off=0):
+    def __init__(self, filter_size=5, stride=2, channels=None):
         super(L2pooling, self).__init__()
         self.padding = (filter_size - 2 )//2
         self.stride = stride
@@ -25,7 +25,7 @@ class L2pooling(nn.Module):
         return (out+1e-12).sqrt()
 
 class DISTS(torch.nn.Module):
-    def __init__(self, load_weights=True, prefix=''):
+    def __init__(self, weights_path=None):
         super(DISTS, self).__init__()
         vgg_pretrained_features = models.vgg16(pretrained=True).features
         self.stage1 = torch.nn.Sequential()
@@ -60,8 +60,8 @@ class DISTS(torch.nn.Module):
         self.alpha.data.normal_(0.1,0.01)
         self.beta.data.normal_(0.1,0.01)
 
-        if load_weights:
-            weights = torch.load(os.path.join(prefix,'weights_DISTS.pt'))
+        if weights_path is not None:
+            weights = torch.load(weights_path)
             self.alpha.data = weights['alpha']
             self.beta.data = weights['beta']
         
