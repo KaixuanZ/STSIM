@@ -74,14 +74,14 @@ def test_DISTS(model = None):
     X1 = F.interpolate(X1, size=256).float()
     X2 = F.interpolate(X2, size=256).float()
     if model is None:
-        model = DISTS(weights_path = 'weights/epoch_10.pt').to(device)
+        model = DISTS(weights_path = 'weights/epoch_0049.pt').to(device)
 
     pred = []
     for i in range(9):
         pred.append( model(X1[i*10:(i+1)*10],X2[i*10:(i+1)*10]) )
 
     pred = torch.cat(pred, dim=0).detach()
-    print("DISTS without training (Borda's rule):", Borda_rule(pred, Y, 9))  # [0.681, 0.693, 0.645] pre-trained, [0.56623409 0.54757116 0.82517333] 10 epoches
+    print("DISTS (Borda's rule):", Borda_rule(pred, Y, 9))  # [0.681, 0.693, 0.645] pre-trained, [0.404 0.421, 0.867] 45 epoches
 
     import pdb;
     pdb.set_trace()
