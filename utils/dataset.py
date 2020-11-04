@@ -29,15 +29,15 @@ class Dataset():
         :return: [i-th distortion, j-th texture, k-th version of label]
         '''
         df = pd.read_excel(self.label_file, header=None)
-        label1 = df.iloc[:9,:10].to_numpy().astype(np.double)
-        label2 = df.iloc[12:21,:10].to_numpy().astype(np.double)
+        #label1 = df.iloc[:9,:10].to_numpy().astype(np.double)
+        #label2 = df.iloc[12:21,:10].to_numpy().astype(np.double)
         label3 = df.iloc[31:40,:10].to_numpy().astype(np.double)
-        return np.stack([label1,label2,label3], axis=2)
-
+        #return np.stack([label1,label2,label3], axis=2)
+        return label3
 
     def _getdata(self, pair = True):
         '''
-        :return: original image, distorted image, label
+        :return: original image, distorted image, label, class of texture
         '''
         img = cv2.imread(self.image_paths[self.cur], 0)/255
 
@@ -50,27 +50,28 @@ class Dataset():
             H, _ = img.shape
             img1 = img[:H // 2, :]
             img2 = img[H // 2:, :]
-            return torch.from_numpy(img1).double().to(self.device), torch.from_numpy(img2).double().to(self.device), torch.tensor(label).to(self.device)
+            return torch.from_numpy(img1).double().to(self.device), torch.from_numpy(img2).double().to(self.device), torch.tensor(label).to(self.device), int(i)
         else:
-            return torch.from_numpy(img).double().to(self.device), torch.tensor(label).to(self.device)
+            return torch.from_numpy(img).double().to(self.device), torch.tensor(label).to(self.device), int(i)
 
     def getdata(self, batchsize, augment = False):
         '''
         return a batch of data
         :param batchsize:
         :param augment: augment = True means using data generated with random seeds
-        :return:
+        :return: image data (pairs), label of perceptual distance, mask of texture class
         '''
-        X1,X2,Y = [],[],[]
+        X1,X2,Y,mask = [],[],[],[]
         for i in range(batchsize):
             if augment:
-                img1, label = self._getdata(pair=False)
+                img1, label, m = self._getdata(pair=False)
             else:
-                img1, img2, label = self._getdata()
+                img1, img2, label, m = self._getdata()
                 X2.append(img2)
 
             X1.append(img1)
             Y.append(label)
+            mask.append(m)
             if self.cur == self.N:
                 self.cur = 0
                 break
@@ -81,26 +82,26 @@ class Dataset():
         Y = torch.stack(Y)
 
         if augment:
-            return X1.unsqueeze(1), Y
+            return X1.unsqueeze(1), Y, mask
         else:
             X2 = torch.stack(X2)
-            return X1.unsqueeze(1), X2.unsqueeze(1), Y
+            return X1.unsqueeze(1), X2.unsqueeze(1), Y, mask
 
 def test():
     image_dir = '../data/scenes_distorted'
     label_file = '../data/huib_analysis_data_across_distortions.xlsx'
-    device = torch.device('cuda:0')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = Dataset(image_dir, label_file, device)
 
     batchsize = 1000
-    X1, X2, Y = dataset.getdata(batchsize, augment = False)
+    X1, X2, Y, mask = dataset.getdata(batchsize, augment = False)
 
     import pdb;
     pdb.set_trace()
 
     image_dir = '../data/training_images'
     dataset = Dataset(image_dir, label_file, device)
-    X1, Y = dataset.getdata(batchsize, augment = True)
+    X1, Y, mask = dataset.getdata(batchsize, augment = True)
 
     import pdb;
     pdb.set_trace()
