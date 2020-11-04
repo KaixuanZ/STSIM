@@ -50,9 +50,9 @@ class Dataset():
             H, _ = img.shape
             img1 = img[:H // 2, :]
             img2 = img[H // 2:, :]
-            return torch.from_numpy(img1).double().to(self.device), torch.from_numpy(img2).double().to(self.device), torch.tensor(label).to(self.device), int(i)
+            return torch.from_numpy(img1).double().to(self.device), torch.from_numpy(img2).double().to(self.device), torch.tensor(label).to(self.device), torch.tensor(int(i)).to(self.device)
         else:
-            return torch.from_numpy(img).double().to(self.device), torch.tensor(label).to(self.device), int(i)
+            return torch.from_numpy(img).double().to(self.device), torch.tensor(label).to(self.device), torch.tensor(int(i)).to(self.device)
 
     def getdata(self, batchsize, augment = False):
         '''
@@ -80,6 +80,7 @@ class Dataset():
         X1 = torch.stack(X1)
         # N
         Y = torch.stack(Y)
+        mask = torch.stack(mask)
 
         if augment:
             return X1.unsqueeze(1), Y, mask
