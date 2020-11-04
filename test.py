@@ -1,39 +1,37 @@
-import numpy as np
-
 from steerable.sp3Filters import sp3Filters
 from utils.dataset import Dataset
-from metrics.STSIM import Metric
+from utils.loss import PearsonCoeff
+from metrics.STSIM import *
 from metrics.DISTS_pt import *
 
 import torch
 import torch.nn.functional as F
 
-def Borda_rule(pred, label, N):
-    '''
-    expectation of Pearson's corr over all textures
-    :param pred: values predicted by the metric
-    :param label: ground truth label
-    :param N: number of distortions per texture
-    :return: Pearson's corr with Borda's rule
-    '''
-    coeffs = np.zeros(label.shape[-1])
-    pred = pred.reshape([N,-1]).cpu().numpy()
-    label = label.reshape([N,-1,label.shape[-1]]).cpu().numpy()
-    for i in range(pred.shape[1]):
-        for j in range(label.shape[-1]):
-            corr = np.corrcoef(pred[:,i], label[:,i,j])[0,1]
-            coeffs[j] += np.abs(corr)
-    return coeffs/pred.shape[1]
+def test_PSNR():
+    image_dir = 'data/scenes_distorted'
+    label_file = 'data/huib_analysis_data_across_distortions.xlsx'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    dataset = Dataset(image_dir, label_file, device)
+
+    batchsize = 1000
+    X1, X2, Y, mask = dataset.getdata(batchsize)
+
+    MSE = torch.mean((X1 - X2)**2, dim = [1,2,3])
+
+    print("PSNR (Borda's rule):", PearsonCoeff(MSE, Y, mask))    # 0.68791932
+
+    import pdb;
+    pdb.set_trace()
 
 
 def stsim_features():
     image_dir = 'data/scenes_distorted'
     label_file = 'data/huib_analysis_data_across_distortions.xlsx'
-    device = torch.device('cuda:0')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = Dataset(image_dir, label_file, device)
 
     batchsize = 1000
-    X1, X2, Y = dataset.getdata(batchsize)
+    X1, X2, Y, mask = dataset.getdata(batchsize)
 
     m_g = Metric(sp3Filters, device=device)
     sub_sample = False # no subsampling
@@ -47,18 +45,27 @@ def test_stsim():
     # test STSIM-1 and STSIM-2
     image_dir = 'data/scenes_distorted'
     label_file = 'data/huib_analysis_data_across_distortions.xlsx'
-    device = torch.device('cuda:0')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = Dataset(image_dir, label_file, device)
 
     batchsize = 1000
-    X1, X2, Y = dataset.getdata(batchsize)
+    X1, X2, Y, mask = dataset.getdata(batchsize)
 
     m_g = Metric(sp3Filters, device=device)
     pred = m_g.STSIM(X1, X2)
-    print("STSIM-1 (Borda's rule):",Borda_rule(pred, Y, 9)) # [0.370, 0.368, 0.896]
+    print("STSIM-1 (Borda's rule):",PearsonCoeff(pred, Y, mask)) # [0.81489032 0.81520277 0.81575464]    input is [0, 255]
 
     pred = m_g.STSIM2(X1, X2)
-    print("STSIM-2 (Borda's rule):", Borda_rule(pred, Y, 9)) # [0.353, 0.331, 0.886]
+    print("STSIM-2 (Borda's rule):", PearsonCoeff(pred, Y, mask)) # [0.85011804 0.85057577 0.85170018]   input is [0, 255]
+
+    model = STSIM_M().double().to(device)
+    X1 = m_g.STSIM_M(X1)
+    X2 = m_g.STSIM_M(X2)
+
+    data = torch.cat([X2, X1[::9, :]], dim=0)
+    model.init_weight(data)
+    coeff, pred = model(X1, X2, Y, mask)
+    print("STSIM-M (Borda's rule):", PearsonCoeff(pred, Y, mask))
 
     import pdb;
     pdb.set_trace()
@@ -66,28 +73,30 @@ def test_stsim():
 def test_DISTS(model = None):
     image_dir = 'data/scenes_distorted'
     label_file = 'data/huib_analysis_data_across_distortions.xlsx'
-    device = torch.device('cuda:0')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = Dataset(image_dir, label_file, device)
 
     batchsize = 1000
-    X1, X2, Y = dataset.getdata(batchsize)
+    X1, X2, Y, mask = dataset.getdata(batchsize)
     X1 = F.interpolate(X1, size=256).float()
     X2 = F.interpolate(X2, size=256).float()
     if model is None:
-        model = DISTS(weights_path = 'weights/epoch_0049.pt').to(device)
+        model = DISTS(weights_path = 'weights/weights_DISTS_trained.pt').to(device)
 
     pred = []
     for i in range(9):
         pred.append( model(X1[i*10:(i+1)*10],X2[i*10:(i+1)*10]) )
 
     pred = torch.cat(pred, dim=0).detach()
-    print("DISTS (Borda's rule):", Borda_rule(pred, Y, 9))  # [0.681, 0.693, 0.645] pre-trained, [0.404 0.421, 0.867] 45 epoches
+    print("DISTS (Borda's rule):", PearsonCoeff(pred, Y, mask))  # [0.79882915 0.80043482 0.8006695 ] pre-trained, [0.81766776 0.81650565 0.81800537] 34 epoches
 
     import pdb;
     pdb.set_trace()
 
 if __name__ == '__main__':
     test_DISTS()
+
+    test_PSNR()
 
     test_stsim()
 
