@@ -3,11 +3,54 @@ import numpy as np
 import itertools
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 import sys
 sys.path.append('..')
 from steerable.Spyr_PyTorch import Spyr_PyTorch
+
+class STSIM_M(torch.nn.Module):
+	def __init__(self, weights_path=None):
+		super(STSIM_M, self).__init__()
+		self.M = nn.Linear(82, 1, bias=False)
+
+		if weights_path is not None:
+			weights = torch.load(weights_path)
+			with torch.no_grad():
+				self.M.weight.copy_(weights['M.weight'])
+
+	def init_weight(self, X):
+		'''
+		:param X: [dim of features, N]
+		'''
+		weights = 1/X.var(0).unsqueeze(0)
+		with torch.no_grad():
+			self.M.weight.copy_(weights)
+
+	def forward_once(self, X):
+		pass
+
+	def forward(self, X1, X2, Y, mask):
+		pred = torch.sqrt(self.M((X1 - X2)**2))
+		coeff = self.criterion(pred, Y, mask)
+		return coeff, pred
+
+	def criterion(self, X, Y, mask):
+		# Borda's rule of pearson coeff between X&Y
+		coeff = 0
+		N = mask.max().item()+1
+		for i in range(N):
+			X1 = X[mask==i,0].double()
+			X1 = X1 - X1.mean()
+			X2 = Y[mask==i].double()
+			X2 = X2 - X2.mean()
+
+			nom = torch.dot(X1, X2)
+			denom = torch.sqrt(torch.sum(X1**2)*torch.sum(X2**2))
+
+			coeff += torch.abs(nom/denom)
+		return coeff/N
 
 class Metric:
 	# implementation of STSIM global (no sliding window), as the global version has a better performance, and also easier to implement
