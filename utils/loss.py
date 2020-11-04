@@ -3,15 +3,16 @@ import torch
 def PearsonCoeff(X, Y, mask):
     '''
     Args:
-        X: [N, 1] neural prediction for one batch
+        X: [N, 1] neural prediction for one batch, or [N] some other metric's output
         Y: [N] label
         mask: [N] indicator of correspondent class, e.g. [0,0,1,1] ,means first two samples are class 0, the rest two samples are class 1
     Returns: Borda's rule of pearson coeff between X&Y, the same as using numpy.corrcoef()
     '''
     coeff = 0
     N = set(mask.detach().cpu().numpy())
+    X = X.squeeze(-1)
     for i in N:
-        X1 = X[mask == i, 0].double()
+        X1 = X[mask == i].double()
         X1 = X1 - X1.mean()
         X2 = Y[mask == i].double()
         X2 = X2 - X2.mean()
