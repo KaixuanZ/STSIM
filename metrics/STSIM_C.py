@@ -78,7 +78,7 @@ class Metric:
 
 		stsim = map(self.pooling, pyrA, pyrB)
 
-		return torch.mean(torch.stack(list(stsim)), dim=0)
+		return torch.mean(torch.stack(list(stsim)), dim=0).T # [BatchSize, FeatureSize]
 
 	def STSIM2(self, img1, img2):
 		assert img1.shape == img2.shape
@@ -118,7 +118,7 @@ class Metric:
 					img23 = self.abs(bandsBn[scale][orient2])
 					stsimg2.append(self.compute_cross_term(img11, img13, img21, img23).mean(dim=[1,2,3]))
 
-		return torch.mean(torch.stack(stsimg2), dim=0)
+		return torch.mean(torch.stack(stsimg2), dim=0).T # [BatchSize, FeatureSize]
 
 	def STSIM_M(self, imgs):
 		'''
@@ -154,7 +154,7 @@ class Metric:
 
 				c1 = F.interpolate(c1, size=c2.shape[2:])
 				f.append(torch.mean(c1*c2, dim = [1,2,3])/torch.sqrt(torch.var(c1, dim = [1,2,3]))/torch.sqrt(torch.var(c2, dim = [1,2,3])))
-		return torch.stack(f)
+		return torch.stack(f).T # [BatchSize, FeatureSize]
 
 	def pooling(self, img1, img2):
 		tmp = self.compute_L_term(img1, img2) * self.compute_C_term(img1, img2) * self.compute_C01_term(img1, img2) * self.compute_C10_term(img1, img2)
