@@ -31,7 +31,7 @@ class Metric:
 		self.win = win
 		self.k = fspecial(win, win/6, device)	#[out_C, in_C/group, H, W]
 		self.device = torch.device('cpu') if device is None else device
-		self.C = 1e-3
+		self.C = 1e-10
 
 	def conj(self, img):
 		if len(img.shape)==4:
