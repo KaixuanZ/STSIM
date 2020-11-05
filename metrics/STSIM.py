@@ -10,53 +10,11 @@ import sys
 sys.path.append('..')
 from steerable.Spyr_PyTorch import Spyr_PyTorch
 
-class STSIM_M(torch.nn.Module):
-	def __init__(self, weights_path=None):
-		super(STSIM_M, self).__init__()
-		self.M = nn.Linear(82, 1, bias=False)
-
-		if weights_path is not None:
-			weights = torch.load(weights_path)
-			with torch.no_grad():
-				self.M.weight.copy_(weights['M.weight'])
-
-	def init_weight(self, X):
-		'''
-		:param X: [dim of features, N]
-		'''
-		weights = 1/X.var(0).unsqueeze(0)
-		with torch.no_grad():
-			self.M.weight.copy_(weights)
-
-	def forward_once(self, X):
-		pass
-
-	def forward(self, X1, X2, Y, mask):
-		pred = torch.sqrt(self.M((X1 - X2)**2))
-		coeff = self.criterion(pred, Y, mask)
-		return coeff, pred
-
-	def criterion(self, X, Y, mask):
-		# Borda's rule of pearson coeff between X&Y
-		coeff = 0
-		N = mask.max().item()+1
-		for i in range(N):
-			X1 = X[mask==i,0].double()
-			X1 = X1 - X1.mean()
-			X2 = Y[mask==i].double()
-			X2 = X2 - X2.mean()
-
-			nom = torch.dot(X1, X2)
-			denom = torch.sqrt(torch.sum(X1**2)*torch.sum(X2**2))
-
-			coeff += torch.abs(nom/denom)
-		return coeff/N
-
 class Metric:
 	# implementation of STSIM global (no sliding window), as the global version has a better performance, and also easier to implement
 	def __init__(self, filter, device=None):
 		self.device = torch.device('cpu') if device is None else device
-		self.C = 1e-3
+		self.C = 1e-10
 		self.filter = filter
 
 	def STSIM(self, img1, img2, sub_sample=True):
@@ -113,7 +71,7 @@ class Metric:
 	def STSIM_M(self, imgs, sub_sample = True):
 		'''
 		:param imgs: [N,C=1,H,W]
-		:return:
+		:return: [N, feature dim]
 		'''
 		s =  Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
 		coeffs = s.buildSpyr(imgs)
@@ -247,3 +205,33 @@ class Metric:
 
 		Crossmap = 1 - 0.5*torch.abs(rho1 - rho2)
 		return Crossmap
+
+class STSIM_M(torch.nn.Module):
+	def __init__(self, dim, device=None):
+		'''
+		Args:
+			mode: regression, STSIM-M
+			weights_path:
+		'''
+		super(STSIM_M, self).__init__()
+		self.linear = nn.Linear(dim[0], dim[1])
+		self.device = torch.device('cpu') if device is None else device
+
+	def forward(self, X1, X2):
+		'''
+		Args:
+			X1:
+			X2:
+		Returns:
+		'''
+		if len(X1.shape)==4:
+			# the input are raw images, extract STSIM-M features
+			from steerable.sp3Filters import sp3Filters
+			m = Metric(sp3Filters, device=self.device)
+			with torch.no_grad():
+				X1 = m.STSIM_M(X1)
+				X2 = m.STSIM_M(X2)
+		#pred = F.sigmoid(self.linear(torch.abs(X1-X2)))	# [N, dim]
+		pred = self.linear(torch.abs(X1-X2))	# [N, dim]
+		pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)	# inner-prod
+		return torch.sqrt(pred)	# [N, 1]

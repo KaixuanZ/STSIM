@@ -35,18 +35,20 @@ def test_stsim():
 
     m_g = Metric(sp3Filters, device=device)
     pred = m_g.STSIM(X1, X2)
+    import pdb;
+    pdb.set_trace()
     print("STSIM-1 (Borda's rule):",PearsonCoeff(pred, Y, mask)) # [0.81489032 0.81520277 0.81575464]    input is [0, 255]
 
     pred = m_g.STSIM2(X1, X2)
     print("STSIM-2 (Borda's rule):", PearsonCoeff(pred, Y, mask)) # [0.85011804 0.85057577 0.85170018]   input is [0, 255]
 
-    model = STSIM_M().double().to(device)
+    model = STSIM_M([82, 10], device).double().to(device)
     X1 = m_g.STSIM_M(X1)
     X2 = m_g.STSIM_M(X2)
 
-    data = torch.cat([X2, X1[::9, :]], dim=0)
-    model.init_weight(data)
-    coeff, pred = model(X1, X2, Y, mask)
+    path = os.path.join('weights', 'weights_STSIM_M_01000.pt')
+    model.load_state_dict(torch.load(path))
+    pred = model(X1, X2)
     print("STSIM-M (Borda's rule):", PearsonCoeff(pred, Y, mask))
 
     import pdb;
@@ -74,8 +76,8 @@ def test_DISTS(model = None):
     pdb.set_trace()
 
 if __name__ == '__main__':
-    test_DISTS()
+    #test_DISTS()
 
-    test_PSNR()
+    #test_PSNR()
 
     test_stsim()
