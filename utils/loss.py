@@ -20,7 +20,7 @@ def PearsonCoeff(X, Y, mask):
         nom = torch.dot(X1, X2)
         denom = torch.sqrt(torch.sum(X1 ** 2) * torch.sum(X2 ** 2))
 
-        coeff += torch.abs(nom / denom)
+        coeff += torch.abs(nom / (denom + 1e-10))
     return coeff / len(N)
 
 
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     X = torch.rand(N,1)
     Y = torch.rand(N)
     mask = []
-    M = 100
+    M = 1
     for i in range(N//M):
         mask += [i**2]*M
     mask = torch.tensor(mask)
