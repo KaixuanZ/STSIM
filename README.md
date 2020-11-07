@@ -8,25 +8,17 @@ Understand which label to use and why
 
 ### Zhaochen
 
-Estimating the parameters of STSIM-M & STSIM-I by using the variance of each feature in training set
-
-Learning the parameters by data & label (Mahalanobis distance, LFDA, and Linear regression)
+Reproduce a few results with the latest pipeline, save model's parameters
 
 ### Kaixuan
 
-Comparing with other recent year's papers (deep learning based)
-
-Comparing these methods on other datasets (if needed)
-
+Cleaning the training, testing, and, data loading pipeline
 
 ## Current Progress:
-Steerable pyramid filters finished.
 
-STSIM-M feature extraction finished.
+Dataset updated
 
-STSIM-1 global, STSIM-2 global finished.
-
-Test with Borda's rule.
+Testing finished
 
 ## Reference Github Repo:
 [steerable pyramid filters](https://github.com/LabForComputationalVision/pyPyrTools)
