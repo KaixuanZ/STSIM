@@ -4,7 +4,7 @@ Implementation of Pytorch version of STSIM metrics.
 
 ## To-do List:
 
-Understand which label to use and why
+Waiting for new dataset, train with new data once we get it
 
 ### Zhaochen
 
