@@ -6,12 +6,11 @@ import torch
 import torchvision.transforms as transforms
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, label_file, dist_folder, ref_folder = 'original', grayscale = False, format = '.png'):
+    def __init__(self, data_dir, label_file, dist_folder, ref_folder = 'original', format = '.png'):
         self.dist_dir = os.path.join(data_dir, dist_folder)
         self.ref_dir = os.path.join(data_dir, ref_folder)
         self.label_file = os.path.join(data_dir, label_file)
         self.labels = self._getlabels()
-        self.grayscale = grayscale
         self.format = format
 
         clean_names = lambda x: [i for i in x if i[0] != '.']
@@ -24,8 +23,6 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, item):
         dist_img_path = self.dist_img_paths[item]
         dist_img = Image.open(dist_img_path)
-        if self.grayscale:
-            dist_img = ImageOps.grayscale(dist_img)
         dist_img = transforms.ToTensor()(dist_img)
 
         tmp = dist_img_path.split('/')[-1]  #file name
@@ -36,8 +33,6 @@ class Dataset(torch.utils.data.Dataset):
         y = self.labels[int(d), int(t)]
         ref_img_path = os.path.join(self.ref_dir, t + self.format)
         ref_img = Image.open(ref_img_path)
-        if self.grayscale:
-            ref_img = ImageOps.grayscale(ref_img)
         ref_img = transforms.ToTensor()(ref_img)
 
         return ref_img, dist_img, y, int(t)
@@ -56,24 +51,22 @@ class Dataset(torch.utils.data.Dataset):
         #return np.stack([label1,label2,label3], axis=2)
         return label3
 
-def test():
+if __name__ == "__main__":
     from torch.autograd import Variable
 
     image_dir = '/dataset/jana2012/'
     label_file = 'label.xlsx'
     dist_img_folder = 'train'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = Dataset( data_dir=image_dir, label_file=label_file, dist_folder=dist_img_folder, grayscale=False )
+    dataset = Dataset(data_dir=image_dir, label_file=label_file, dist_folder=dist_img_folder)
 
-    batch_size = 1000   # the actually batchsize <= total images in dataset
-    data_generator = torch.utils.data.DataLoader(dataset, batch_size = batch_size)
+    batch_size = 1000  # the actually batchsize <= total images in dataset
+    data_generator = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
 
     for X1, X2, Y, mask in data_generator:
         X1 = Variable(X1.to(device))
         X2 = X2.to(device)
         Y = Y.to(device)
         import pdb;
-        pdb.set_trace()
 
-if __name__ == "__main__":
-    test()
+        pdb.set_trace()
