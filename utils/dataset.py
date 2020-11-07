@@ -1,28 +1,49 @@
-import cv2
+from PIL import Image, ImageOps
 import numpy as np
 import pandas as pd
 import os
 import torch
+import torchvision.transforms as transforms
 
-clean_names = lambda x: [i for i in x if i[0] != '.']
+class Dataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, label_file, dist_folder, ref_folder = 'original', grayscale = False, format = '.png'):
+        self.dist_dir = os.path.join(data_dir, dist_folder)
+        self.ref_dir = os.path.join(data_dir, ref_folder)
+        self.label_file = os.path.join(data_dir, label_file)
+        self.labels = self._getlabels()
+        self.grayscale = grayscale
+        self.format = format
 
-class Dataset():
-    def __init__(self, image_dir, label_file, device):
-        '''
-        :param image_dir:
-        :param label_file:
-        :param device:
-        :param label_id: 0,1,2 three version of scores
-        '''
-        self.image_paths = [os.path.join(image_dir,path) for path in sorted(clean_names(os.listdir(image_dir)))]
-        self.label_file = label_file
-        self.labels = self.getlabels()  # [i,j,k]
-        self.N = len(self.image_paths)
-        self.cur = 0
-        self.device = device
+        clean_names = lambda x: [i for i in x if i[0] != '.']
+        self.dist_img_paths = [os.path.join(self.dist_dir, img) for img in os.listdir(self.dist_dir)]
+        self.dist_img_paths = clean_names(self.dist_img_paths)
+
+    def __len__(self):
+        return len(self.dist_img_paths)
+
+    def __getitem__(self, item):
+        dist_img_path = self.dist_img_paths[item]
+        dist_img = Image.open(dist_img_path)
+        if self.grayscale:
+            dist_img = ImageOps.grayscale(dist_img)
+        dist_img = transforms.ToTensor()(dist_img)
+
+        tmp = dist_img_path.split('/')[-1]  #file name
+        tmp = tmp.split('.')[0]
+        tmp = tmp.split('_')
+        t, d = tmp[0], tmp[1] # texture, distortion, n-th data
+
+        y = self.labels[int(d), int(t)]
+        ref_img_path = os.path.join(self.ref_dir, t + self.format)
+        ref_img = Image.open(ref_img_path)
+        if self.grayscale:
+            ref_img = ImageOps.grayscale(ref_img)
+        ref_img = transforms.ToTensor()(ref_img)
+
+        return ref_img, dist_img, y, int(t)
 
 
-    def getlabels(self):
+    def _getlabels(self):
         '''
         :param label_file:
         :param id: the id of label matrix
@@ -35,77 +56,24 @@ class Dataset():
         #return np.stack([label1,label2,label3], axis=2)
         return label3
 
-    def _getdata(self, pair = True):
-        '''
-        :return: original image, distorted image, label, class of texture
-        '''
-        img = cv2.imread(self.image_paths[self.cur], 0)/255
-
-        path = self.image_paths[self.cur].split('/')[-1]
-        i, j = int(path[0]), int(path[2])   # class of texture, class of distortion
-        label = self.labels[j, i]
-
-        self.cur += 1
-        if pair:
-            H, _ = img.shape
-            img1 = img[:H // 2, :]
-            img2 = img[H // 2:, :]
-            return torch.from_numpy(img1).double().to(self.device), torch.from_numpy(img2).double().to(self.device), torch.tensor(label).to(self.device), torch.tensor(int(i)).to(self.device)
-        else:
-            return torch.from_numpy(img).double().to(self.device), torch.tensor(label).to(self.device), torch.tensor(int(i)).to(self.device)
-
-    def getdata(self, batchsize, augment = False):
-        '''
-        return a batch of data
-        :param batchsize:
-        :param augment: augment = True means using data generated with random seeds
-        :return: image data (pairs), label of perceptual distance, mask of texture class
-        '''
-        X1,X2,Y,mask = [],[],[],[]
-        for i in range(batchsize):
-            if augment:
-                img1, label, m = self._getdata(pair=False)
-            else:
-                img1, img2, label, m = self._getdata()
-                X2.append(img2)
-
-            X1.append(img1)
-            Y.append(label)
-            mask.append(m)
-            if self.cur == self.N:
-                self.cur = 0
-                break
-
-        # N, C=1, H, W
-        X1 = torch.stack(X1)
-        # N
-        Y = torch.stack(Y)
-        mask = torch.stack(mask)
-
-        if augment:
-            return X1.unsqueeze(1), Y, mask
-        else:
-            X2 = torch.stack(X2)
-            return X1.unsqueeze(1), X2.unsqueeze(1), Y, mask
-
 def test():
-    image_dir = '../data/scenes_distorted'
-    label_file = '../data/huib_analysis_data_across_distortions.xlsx'
+    from torch.autograd import Variable
+
+    image_dir = '/dataset/jana2012/'
+    label_file = 'label.xlsx'
+    dist_img_folder = 'train'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = Dataset(image_dir, label_file, device)
+    dataset = Dataset( data_dir=image_dir, label_file=label_file, dist_folder=dist_img_folder, grayscale=False )
 
-    batchsize = 1000
-    X1, X2, Y, mask = dataset.getdata(batchsize, augment = False)
+    batch_size = 1000   # the actually batchsize <= total images in dataset
+    data_generator = torch.utils.data.DataLoader(dataset, batch_size = batch_size)
 
-    import pdb;
-    pdb.set_trace()
-
-    image_dir = '../data/training_images'
-    dataset = Dataset(image_dir, label_file, device)
-    X1, Y, mask = dataset.getdata(batchsize, augment = True)
-
-    import pdb;
-    pdb.set_trace()
+    for X1, X2, Y, mask in data_generator:
+        X1 = Variable(X1.to(device))
+        X2 = X2.to(device)
+        Y = Y.to(device)
+        import pdb;
+        pdb.set_trace()
 
 if __name__ == "__main__":
     test()
