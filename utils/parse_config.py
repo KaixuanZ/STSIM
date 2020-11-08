@@ -1,6 +1,6 @@
 
-def parse_data_config(path):
-    """Parses the data configuration file"""
+def parse_config(path):
+    """Parses the configuration file"""
     options = dict()
     options['gpus'] = '0'
     options['num_workers'] = '0'
@@ -15,7 +15,7 @@ def parse_data_config(path):
     return options
 
 if __name__ == '__main__':
-    tmp = parse_data_config('../config/test.cfg')
+    tmp = parse_config('../config/test.cfg')
 
     import pdb;
     pdb.set_trace()

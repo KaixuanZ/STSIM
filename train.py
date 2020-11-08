@@ -5,7 +5,7 @@ import numpy as np
 from test import evaluation
 from test import PearsonCoeff
 from utils.dataset import Dataset
-from utils.parse_config import parse_data_config
+from utils.parse_config import parse_config
 
 import torch
 import torch.nn as nn
@@ -16,36 +16,36 @@ from torch.utils.tensorboard import SummaryWriter
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
 
     opt = parser.parse_args()
     print(opt)
-    data_config = parse_data_config(opt.data_config)
-    print(data_config)
+    config = parse_config(opt.config)
+    print(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if not os.path.isdir(data_config['weights_path']):
-        os.mkdir(data_config['weights_path'])
+    if not os.path.isdir(config['weights_path']):
+        os.mkdir(config['weights_path'])
 
     # read training data
-    dataset_dir = data_config['dataset_dir']
-    label_file = data_config['label_file']
-    dist_img_folder = data_config['train_img_folder']
-    train_batch_size = int(data_config['train_batch_size'])
+    dataset_dir = config['dataset_dir']
+    label_file = config['label_file']
+    dist_img_folder = config['train_img_folder']
+    train_batch_size = int(config['train_batch_size'])
     trainset = Dataset(data_dir=dataset_dir, label_file=label_file, dist_folder=dist_img_folder)
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size, shuffle=True)
 
     # read validation data
-    dataset_dir = data_config['dataset_dir']
-    dist_img_folder = data_config['valid_img_folder']
-    valid_batch_size = int(data_config['valid_batch_size'])
+    dataset_dir = config['dataset_dir']
+    dist_img_folder = config['valid_img_folder']
+    valid_batch_size = int(config['valid_batch_size'])
     validset = Dataset(data_dir=dataset_dir, label_file=label_file, dist_folder=dist_img_folder)
     valid_loader = torch.utils.data.DataLoader(validset, batch_size=valid_batch_size)
 
-    epochs = int(data_config['epochs'])
-    evaluation_interval = int(data_config['evaluation_interval'])
-    checkpoint_interval = int(data_config['checkpoint_interval'])
+    epochs = int(config['epochs'])
+    evaluation_interval = int(config['evaluation_interval'])
+    checkpoint_interval = int(config['checkpoint_interval'])
     # model, STSIM or DISTS
-    if data_config['model'] == 'STSIM':
+    if config['model'] == 'STSIM':
         # prepare data
         X1_train, X2_train, Y_train, mask_train = next(iter(train_loader))
         X1_valid, X2_valid, Y_valid, mask_valid = next(iter(valid_loader))
@@ -81,9 +81,9 @@ if __name__ == '__main__':
                 val = evaluation(pred, Y_valid, mask_valid)
                 print('validation iter ' + str(i) + ' :', val)
             if i % checkpoint_interval == 0:    # save weights
-                torch.save(model.state_dict(), os.path.join(data_config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
+                torch.save(model.state_dict(), os.path.join(config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
 
-    elif data_config['model'] == 'DISTS':
+    elif config['model'] == 'DISTS':
         # model
         from metrics.DISTS_pt import *
         model = DISTS().to(device)
@@ -120,4 +120,4 @@ if __name__ == '__main__':
                 writer.add_scalar('Loss/valid', np.mean(running_loss), i)
                 print('validation iter ' + str(i) + ' :', np.mean(running_loss))
             if i % checkpoint_interval == 0:
-                torch.save(model.state_dict(), os.path.join(data_config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
+                torch.save(model.state_dict(), os.path.join(config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
