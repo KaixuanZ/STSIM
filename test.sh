@@ -1,1 +1,0 @@
-python test.py --data_config config/test.cfg
