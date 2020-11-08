@@ -2,11 +2,36 @@ import argparse
 
 from steerable.sp3Filters import sp3Filters
 from utils.dataset import Dataset
-from utils.loss import PearsonCoeff
 from utils.parse_config import parse_data_config
 
 import torch
 import torch.nn.functional as F
+
+def PearsonCoeff(X, Y, mask):
+    '''
+    Args:
+        X: [N, 1] neural prediction for one batch, or [N] some other metric's output
+        Y: [N] label
+        mask: [N] indicator of correspondent class, e.g. [0,0,1,1] ,means first two samples are class 0, the rest two samples are class 1
+    Returns: Borda's rule of pearson coeff between X&Y, the same as using numpy.corrcoef()
+    '''
+    coeff = 0
+    N = set(mask.detach().cpu().numpy())
+    X = X.squeeze(-1)
+    for i in N:
+        X1 = X[mask == i].double()
+        X1 = X1 - X1.mean()
+        X2 = Y[mask == i].double()
+        X2 = X2 - X2.mean()
+
+        nom = torch.dot(X1, X2)
+        denom = torch.sqrt(torch.sum(X1 ** 2) * torch.sum(X2 ** 2))
+
+        coeff += torch.abs(nom / (denom + 1e-10))
+    return coeff / len(N)
+
+def evaluation(pred, Y, mask):
+    return PearsonCoeff(pred, Y, mask).item()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -31,7 +56,7 @@ if __name__ == '__main__':
     # test with different model
     if data_config['model'] == 'PSNR':
         pred = torch.mean((X1 - X2)**2, dim = [1,2,3])
-        print("Pearson Coeff with Borda's rule:", PearsonCoeff(pred, Y, mask)) # 0.68791932
+        print("PSNR test:", evaluation(pred, Y, mask)) # 0.68791932
     elif data_config['model'] == 'STSIM':
         from metrics.STSIM import *
         X1 = X1.to(device).double()
@@ -40,10 +65,10 @@ if __name__ == '__main__':
         mask = mask.to(device).double()
         m_g = Metric(sp3Filters, device=device)
         pred = m_g.STSIM(X1, X2)
-        print("STSIM-1 Pearson Coeff with Borda's rule:", PearsonCoeff(pred, Y, mask)) # 0.8158
+        print("STSIM-1 test:", evaluation(pred, Y, mask)) # 0.8158
 
         pred = m_g.STSIM2(X1, X2)
-        print("STSIM-2 Pearson Coeff with Borda's rule:", PearsonCoeff(pred, Y, mask))  # 0.8517
+        print("STSIM-2 test:", evaluation(pred, Y, mask))  # 0.8517
     elif data_config['model'] == 'DISTS':
         from metrics.DISTS_pt import *
         X1 = F.interpolate(X1.to(device), size=256).float()
@@ -56,4 +81,4 @@ if __name__ == '__main__':
             pred.append(model(X1[i * 45:(i + 1) * 45], X2[i * 45:(i + 1) * 45]))
         pred = torch.cat(pred, dim=0).detach()
 
-        print("Pearson Coeff with Borda's rule:", PearsonCoeff(pred, Y, mask))  #0.9356
+        print("DISTS test:", evaluation(pred, Y, mask))  #0.9356
