@@ -5,6 +5,7 @@ import os
 import torch
 import torchvision.transforms as transforms
 
+
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, label_file, dist_folder, ref_folder = 'original', format = '.png'):
         self.dist_dir = os.path.join(data_dir, dist_folder)
@@ -37,7 +38,6 @@ class Dataset(torch.utils.data.Dataset):
 
         return ref_img, dist_img, y, int(t)
 
-
     def _getlabels(self):
         '''
         :param label_file:
@@ -51,10 +51,11 @@ class Dataset(torch.utils.data.Dataset):
         #return np.stack([label1,label2,label3], axis=2)
         return label3
 
+
 if __name__ == "__main__":
     from torch.autograd import Variable
 
-    image_dir = '/dataset/jana2012/'
+    image_dir = '../dataset/jana2012/'
     label_file = 'label.xlsx'
     dist_img_folder = 'train'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

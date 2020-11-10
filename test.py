@@ -69,6 +69,8 @@ if __name__ == '__main__':
 
         pred = m_g.STSIM2(X1, X2)
         print("STSIM-2 test:", evaluation(pred, Y, mask))  # 0.8517
+
+
     elif config['model'] == 'DISTS':
         from metrics.DISTS_pt import *
         X1 = F.interpolate(X1.to(device), size=256).float()
