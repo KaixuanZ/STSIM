@@ -55,8 +55,8 @@ if __name__ == '__main__':
 
     # test with different model
     if config['model'] == 'PSNR':
-        pred = torch.mean((X1 - X2)**2, dim = [1,2,3])
-        print("PSNR test:", evaluation(pred, Y, mask)) # 0.68791932
+        pred = torch.log(torch.mean((X1 - X2)**2, dim = [1,2,3]))
+        print("PSNR test:", evaluation(pred, Y, mask)) # 0.7319034371628678
     elif config['model'] == 'STSIM':
         from metrics.STSIM import *
         X1 = X1.to(device).double()
