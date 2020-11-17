@@ -6,6 +6,50 @@ from utils.parse_config import parse_config
 
 import torch
 import torch.nn.functional as F
+import scipy.stats
+
+def SpearmanCoeff(X, Y, mask):
+    '''
+    Args:
+        X: [N, 1] neural prediction for one batch, or [N] some other metric's output
+        Y: [N] label
+        mask: [N] indicator of correspondent class, e.g. [0,0,1,1] ,means first two samples are class 0, the rest two samples are class 1
+    Returns: Borda's rule of pearson coeff between X&Y, the same as using numpy.corrcoef()
+    '''
+    coeff = 0
+    N = set(mask.detach().cpu().numpy())
+    X = X.squeeze(-1)
+    X = X.detach().cpu().numpy()
+    Y = Y.detach().cpu().numpy()
+    mask = mask.detach().cpu().numpy()
+    for i in N:
+        X1 = X[mask == i]
+        X2 = Y[mask == i]
+
+        coeff += scipy.stats.spearmanr(X1, X2).correlation
+    return coeff / len(N)
+
+
+def KendallCoeff(X, Y, mask):
+    '''
+    Args:
+        X: [N, 1] neural prediction for one batch, or [N] some other metric's output
+        Y: [N] label
+        mask: [N] indicator of correspondent class, e.g. [0,0,1,1] ,means first two samples are class 0, the rest two samples are class 1
+    Returns: Borda's rule of pearson coeff between X&Y, the same as using numpy.corrcoef()
+    '''
+    coeff = 0
+    N = set(mask.detach().cpu().numpy())
+    X = X.squeeze(-1)
+    X = X.detach().cpu().numpy()
+    Y = Y.detach().cpu().numpy()
+    mask = mask.detach().cpu().numpy()
+    for i in N:
+        X1 = X[mask == i]
+        X2 = Y[mask == i]
+
+        coeff += scipy.stats.kendalltau(X1, X2).correlation
+    return coeff / len(N)
 
 def PearsonCoeff(X, Y, mask):
     '''
@@ -31,7 +75,17 @@ def PearsonCoeff(X, Y, mask):
     return coeff / len(N)
 
 def evaluation(pred, Y, mask):
-    return PearsonCoeff(pred, Y, mask).item()
+    res = {}
+
+    PCoeff = PearsonCoeff(pred, Y, mask).item()
+    res['PLCC'] = PCoeff
+
+    SCoeff = SpearmanCoeff(pred, Y, mask)
+    res['SRCC'] = SCoeff
+
+    KCoeff = KendallCoeff(pred, Y, mask)
+    res['KRCC'] = KCoeff
+    return res
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -56,7 +110,8 @@ if __name__ == '__main__':
     # test with different model
     if config['model'] == 'PSNR':
         pred = torch.log(torch.mean((X1 - X2)**2, dim = [1,2,3]))
-        print("PSNR test:", evaluation(pred, Y, mask)) # 0.7319034371628678
+        print("PSNR test:")
+        evaluation(pred, Y, mask) # 0.7319034371628678
     elif config['model'] == 'STSIM':
         from metrics.STSIM import *
         X1 = X1.to(device).double()
@@ -65,11 +120,12 @@ if __name__ == '__main__':
         mask = mask.to(device).double()
         m_g = Metric(sp3Filters, device=device)
         pred = m_g.STSIM(X1, X2)
-        print("STSIM-1 test:", evaluation(pred, Y, mask)) # 0.8158
+        print("STSIM-1 test:")
+        evaluation(pred, Y, mask) # 0.8158
 
         pred = m_g.STSIM2(X1, X2)
-        print("STSIM-2 test:", evaluation(pred, Y, mask))  # 0.8517
-
+        print("STSIM-2 test:")
+        evaluation(pred, Y, mask)  # 0.8517
 
     elif config['model'] == 'DISTS':
         from metrics.DISTS_pt import *
@@ -83,4 +139,4 @@ if __name__ == '__main__':
             pred.append(model(X1[i * 45:(i + 1) * 45], X2[i * 45:(i + 1) * 45]))
         pred = torch.cat(pred, dim=0).detach()
 
-        print("DISTS test:", evaluation(pred, Y, mask))  #0.9356
+        print("DISTS test:", evaluation(pred, Y, mask))  #{'PLCC': 0.9355765585321228, 'SRCC': 0.9097414530383696, 'KRCC': 0.8316789593383687}
