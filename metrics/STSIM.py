@@ -206,7 +206,7 @@ class Metric:
 		return Crossmap
 
 class STSIM_M(torch.nn.Module):
-	def __init__(self, dim, device=None):
+	def __init__(self, dim, mode=0, device=None):
 		'''
 		Args:
 			mode: regression, STSIM-M
@@ -215,6 +215,14 @@ class STSIM_M(torch.nn.Module):
 		super(STSIM_M, self).__init__()
 		self.linear = nn.Linear(dim[0], dim[1])
 		self.device = torch.device('cpu') if device is None else device
+		self.mode = mode
+		if self.mode == 0:  # STSIM_M_F
+			self.linear = nn.Linear(dim[0], dim[1])
+		elif self.mode == 1:  # STSIM_M_R
+			self.hidden = torch.nn.Linear(dim[0], dim[0])
+			self.predict = torch.nn.Linear(dim[0], 1)
+		elif self.mode == 2:  # STSIM_M
+			self.linear = nn.Linear(dim[0], 1)
 
 	def forward(self, X1, X2):
 		'''
@@ -223,14 +231,28 @@ class STSIM_M(torch.nn.Module):
 			X2:
 		Returns:
 		'''
-		if len(X1.shape)==4:
+		if len(X1.shape) == 4:
 			# the input are raw images, extract STSIM-M features
 			from steerable.sp3Filters import sp3Filters
 			m = Metric(sp3Filters, device=self.device)
 			with torch.no_grad():
 				X1 = m.STSIM_M(X1)
 				X2 = m.STSIM_M(X2)
-		#pred = F.sigmoid(self.linear(torch.abs(X1-X2)))	# [N, dim]
-		pred = self.linear(torch.abs(X1-X2))	# [N, dim]
-		pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)	# inner-prod
-		return torch.sqrt(pred)	# [N, 1]
+		if self.mode == 0:  # STSIM_M_F
+			#             For mse loss, use sigmoid and do not use sqrt on the output would get better result
+			#             pred = F.sigmoid(self.linear(torch.abs(X1-X2)))	# [N, dim]
+			#             pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)	# inner-prod
+			#             return pred
+			pred = self.linear(X1 - X2)  # [N, dim]
+			pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
+			return torch.sqrt(pred)  # [N, 1]
+		elif self.mode == 1:  # STSIM_M_R
+			pred = F.relu(self.hidden(torch.abs(X1 - X2)))
+			pred = torch.sigmoid(self.predict(pred))
+			return pred
+		elif self.mode == 2:  # STSIM_M data driven
+			#             For mse loss, use sigmoid would get better result
+			#             pred = torch.sigmoid(self.linear(torch.abs(X1-X2))) # [N, 1]
+			#             return pred
+			pred = self.linear(torch.abs(X1 - X2))  # [N, 1]
+			return torch.sigmoid(pred)
