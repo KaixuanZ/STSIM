@@ -16,7 +16,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
+    #parser.add_argument("--config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/train_DISTS.cfg", help="path to data config file")
 
     opt = parser.parse_args()
     print(opt)
@@ -30,9 +31,10 @@ if __name__ == '__main__':
     dataset_dir = config['dataset_dir']
     label_file = config['label_file']
     dist_img_folder = config['train_img_folder']
+    shuffle = bool(int(config['shuffle']))
     train_batch_size = int(config['train_batch_size'])
     trainset = Dataset(data_dir=dataset_dir, label_file=label_file, dist_folder=dist_img_folder)
-    train_loader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size, shuffle=True)
+    train_loader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size, shuffle=shuffle)
 
     # read validation data
     dataset_dir = config['dataset_dir']
@@ -44,6 +46,8 @@ if __name__ == '__main__':
     epochs = int(config['epochs'])
     evaluation_interval = int(config['evaluation_interval'])
     checkpoint_interval = int(config['checkpoint_interval'])
+    lr = float(config['lr'])
+    loss_type = config['loss']
     # model, STSIM or DISTS
     if config['model'] == 'STSIM':
         # prepare data
@@ -63,14 +67,17 @@ if __name__ == '__main__':
         mask_train = mask_train.to(device)
         mask_valid = mask_valid.to(device)
 
+        mode = int(config['mode'])
         # learnable parameters
-        model = STSIM_M([X1_train.shape[1], 10], device).double().to(device)
-        optimizer = optim.Adam(model.parameters(), lr=0.01)
+        model = STSIM_M([X1_train.shape[1], 10], mode, device).double().to(device)
+        optimizer = optim.Adam(model.parameters(), lr=lr)
 
         for i in range(epochs):
             pred = model(X1_train, X2_train)
-            loss = -PearsonCoeff(pred, Y_train, mask_train)  # min neg ==> max
-            #loss = torch.mean((pred - Y_train) ** 2)
+            if loss_type == 'MSE':
+                loss = torch.mean((pred - Y_train) ** 2)
+            elif loss_type == 'Coeff':
+                loss = -PearsonCoeff(pred, Y_train, mask_train)  # min neg ==> max
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -87,19 +94,22 @@ if __name__ == '__main__':
         # model
         from metrics.DISTS_pt import *
         model = DISTS().to(device)
-        optimizer = optim.Adam([model.alpha, model.beta], lr=0.001)
+        optimizer = optim.Adam([model.alpha, model.beta], lr=lr)
 
         writer = SummaryWriter()
         # train
         for i in range(epochs):
             running_loss = []
-            for X1_train, X2_train, Y_train, _ in train_loader:
+            for X1_train, X2_train, Y_train, mask_train in train_loader:
                 X1_train = F.interpolate(X1_train, size=256).float().to(device)
                 X2_train = F.interpolate(X2_train, size=256).float().to(device)
                 Y_train = Y_train.to(device)
 
                 pred = model(X1_train, X2_train)
-                loss = torch.mean((pred - Y_train) ** 2)
+                if loss_type == 'MSE':
+                    loss = torch.mean((pred - Y_train) ** 2)
+                elif loss_type == 'Coeff':
+                    loss = -PearsonCoeff(pred, Y_train, mask_train)  # min neg ==> max
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -110,14 +120,22 @@ if __name__ == '__main__':
 
             if i % evaluation_interval == 0:    # validation
                 running_loss = []
-                for X1_valid, X2_valid, Y_valid, _ in valid_loader:
+                for X1_valid, X2_valid, Y_valid, mask_valid in valid_loader:
                     X1_valid = F.interpolate(X1_valid, size=256).float().to(device)
                     X2_valid = F.interpolate(X2_valid, size=256).float().to(device)
                     Y_valid = Y_valid.to(device)
                     pred = model(X1_valid, X2_valid)
-                    loss = torch.mean((pred - Y_valid) ** 2)
+                    if loss_type == 'MSE':
+                        loss = torch.mean((pred - Y_valid) ** 2)
+                    elif loss_type == 'Coeff':
+                        loss = -PearsonCoeff(pred, Y_valid, mask_valid)  # min neg ==> max
                     running_loss.append(loss.item())
                 writer.add_scalar('Loss/valid', np.mean(running_loss), i)
                 print('validation iter ' + str(i) + ' :', np.mean(running_loss))
             if i % checkpoint_interval == 0:
                 torch.save(model.state_dict(), os.path.join(config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
+    # save config
+    import json
+    output_path = os.path.join(config['weights_path'], 'config.json')
+    with open(output_path, 'w') as json_file:
+        json.dump(config, json_file)
