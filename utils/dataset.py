@@ -15,7 +15,7 @@ class Dataset(torch.utils.data.Dataset):
 
         clean_names = lambda x: [i for i in x if i[0] != '.']
         self.dist_img_paths = [os.path.join(self.dist_dir, img) for img in os.listdir(self.dist_dir)]
-        self.dist_img_paths = clean_names(self.dist_img_paths)
+        self.dist_img_paths = sorted(clean_names(self.dist_img_paths))
 
     def __len__(self):
         return len(self.dist_img_paths)
