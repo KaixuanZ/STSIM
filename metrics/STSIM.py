@@ -243,7 +243,7 @@ class STSIM_M(torch.nn.Module):
 			#             pred = F.sigmoid(self.linear(torch.abs(X1-X2)))	# [N, dim]
 			#             pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)	# inner-prod
 			#             return pred
-			pred = self.linear(X1 - X2)  # [N, dim]
+			pred = self.linear(torch.abs(X1 - X2))  # [N, dim]
 			pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
 			return torch.sqrt(pred)  # [N, 1]
 		elif self.mode == 1:  # STSIM_M_R
