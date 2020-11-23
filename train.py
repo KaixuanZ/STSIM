@@ -16,12 +16,13 @@ from torch.utils.tensorboard import SummaryWriter
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    #parser.add_argument("--config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
-    parser.add_argument("--config", type=str, default="config/train_DISTS.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
+    #parser.add_argument("--config", type=str, default="config/train_DISTS.cfg", help="path to data config file")
 
     opt = parser.parse_args()
     print(opt)
     config = parse_config(opt.config)
+
     print(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if not os.path.isdir(config['weights_path']):
@@ -69,7 +70,7 @@ if __name__ == '__main__':
 
         mode = int(config['mode'])
         # learnable parameters
-        model = STSIM_M([X1_train.shape[1], 10], mode, device).double().to(device)
+        model = STSIM_M(config['dim'], mode, device).double().to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr)
 
         for i in range(epochs):

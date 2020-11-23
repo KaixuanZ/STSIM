@@ -105,6 +105,12 @@ if __name__ == '__main__':
     testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist_folder=dist_img_folder)
     test_loader = torch.utils.data.DataLoader(testset, batch_size=opt.batch_size)
 
+    # read train config
+    import json
+    with open(config['train_config_path']) as f:
+        train_config = json.load(f)
+        print(train_config)
+
     X1, X2, Y, mask = next(iter(test_loader))
 
     # test with different model
@@ -120,12 +126,18 @@ if __name__ == '__main__':
         mask = mask.to(device).double()
         m_g = Metric(sp3Filters, device=device)
         pred = m_g.STSIM(X1, X2)
-        print("STSIM-1 test:")
-        evaluation(pred, Y, mask) # 0.8158
+        print("STSIM-1 test:", evaluation(pred, Y, mask)) # 0.8158
 
         pred = m_g.STSIM2(X1, X2)
-        print("STSIM-2 test:")
-        evaluation(pred, Y, mask)  # 0.8517
+        print("STSIM-2 test:", evaluation(pred, Y, mask))  # 0.8517
+
+
+        model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), device = device)
+        model.load_state_dict(torch.load(config['weights_path']))
+        #model.load_state_dict(torch.load('weights/STSIM/epoch_0750.pt'))
+        model.to(device).double()
+        pred = model(X1, X2)
+        print("STSIM-M test:", evaluation(pred, Y, mask)) #
 
     elif config['model'] == 'DISTS':
         from metrics.DISTS_pt import *
