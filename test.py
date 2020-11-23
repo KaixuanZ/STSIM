@@ -134,10 +134,9 @@ if __name__ == '__main__':
 
         model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), device = device)
         model.load_state_dict(torch.load(config['weights_path']))
-        #model.load_state_dict(torch.load('weights/STSIM/epoch_0750.pt'))
         model.to(device).double()
         pred = model(X1, X2)
-        print("STSIM-M test:", evaluation(pred, Y, mask)) #
+        print("STSIM-M test:", evaluation(pred, Y, mask)) # 0.975
 
     elif config['model'] == 'DISTS':
         from metrics.DISTS_pt import *
