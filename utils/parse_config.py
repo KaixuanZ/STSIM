@@ -12,6 +12,10 @@ def parse_config(path):
             continue
         key, value = line.split('=')
         options[key.strip()] = value.strip()
+    if 'dim' in options:
+        dim = options['dim']
+        dim = dim.split(',')
+        options['dim'] = [int(d) for d in dim]
     return options
 
 if __name__ == '__main__':
