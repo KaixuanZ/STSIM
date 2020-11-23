@@ -16,8 +16,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
-    #parser.add_argument("--config", type=str, default="config/train_DISTS.cfg", help="path to data config file")
+    #parser.add_argument("--config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/train_DISTS.cfg", help="path to data config file")
 
     opt = parser.parse_args()
     print(opt)
@@ -49,6 +49,13 @@ if __name__ == '__main__':
     checkpoint_interval = int(config['checkpoint_interval'])
     lr = float(config['lr'])
     loss_type = config['loss']
+
+    # save config
+    import json
+    output_path = os.path.join(config['weights_path'], 'config.json')
+    with open(output_path, 'w') as json_file:
+        json.dump(config, json_file)
+
     # model, STSIM or DISTS
     if config['model'] == 'STSIM':
         # prepare data
@@ -135,8 +142,3 @@ if __name__ == '__main__':
                 print('validation iter ' + str(i) + ' :', np.mean(running_loss))
             if i % checkpoint_interval == 0:
                 torch.save(model.state_dict(), os.path.join(config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
-    # save config
-    import json
-    output_path = os.path.join(config['weights_path'], 'config.json')
-    with open(output_path, 'w') as json_file:
-        json.dump(config, json_file)
