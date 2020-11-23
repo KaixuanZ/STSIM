@@ -131,12 +131,14 @@ if __name__ == '__main__':
         pred = m_g.STSIM2(X1, X2)
         print("STSIM-2 test:", evaluation(pred, Y, mask))  # 0.8517
 
-
         model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), device = device)
         model.load_state_dict(torch.load(config['weights_path']))
         model.to(device).double()
         pred = model(X1, X2)
         print("STSIM-M test:", evaluation(pred, Y, mask)) # 0.975
+        import pdb;
+
+        pdb.set_trace()
 
     elif config['model'] == 'DISTS':
         from metrics.DISTS_pt import *
@@ -150,4 +152,4 @@ if __name__ == '__main__':
             pred.append(model(X1[i * 45:(i + 1) * 45], X2[i * 45:(i + 1) * 45]))
         pred = torch.cat(pred, dim=0).detach()
 
-        print("DISTS test:", evaluation(pred, Y, mask))  #{'PLCC': 0.9355765585321228, 'SRCC': 0.9097414530383696, 'KRCC': 0.8316789593383687}
+        print("DISTS test:", evaluation(pred, Y, mask))  # {'PLCC': 0.9574348579861184, 'SRCC': 0.9213941434033467, 'KRCC': 0.8539799877032255}
