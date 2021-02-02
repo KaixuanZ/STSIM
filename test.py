@@ -26,7 +26,7 @@ def SpearmanCoeff(X, Y, mask):
         X1 = X[mask == i]
         X2 = Y[mask == i]
 
-        coeff += scipy.stats.spearmanr(X1, X2).correlation
+        coeff += np.abs(scipy.stats.spearmanr(X1, X2).correlation)
     return coeff / len(N)
 
 
@@ -48,7 +48,7 @@ def KendallCoeff(X, Y, mask):
         X1 = X[mask == i]
         X2 = Y[mask == i]
 
-        coeff += scipy.stats.kendalltau(X1, X2).correlation
+        coeff += np.abs(scipy.stats.kendalltau(X1, X2).correlation)
     return coeff / len(N)
 
 def PearsonCoeff(X, Y, mask):
@@ -78,19 +78,19 @@ def evaluation(pred, Y, mask):
     res = {}
 
     PCoeff = PearsonCoeff(pred, Y, mask).item()
-    res['PLCC'] = PCoeff
+    res['PLCC'] = float("{:.3f}".format(PCoeff))
 
     SCoeff = SpearmanCoeff(pred, Y, mask)
-    res['SRCC'] = SCoeff
+    res['SRCC'] = float("{:.3f}".format(SCoeff))
 
     KCoeff = KendallCoeff(pred, Y, mask)
-    res['KRCC'] = KCoeff
+    res['KRCC'] = float("{:.3f}".format(KCoeff))
     return res
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="config/test.cfg", help="path to data config file")
-    parser.add_argument("--batch_size", type=int, default=1000, help="size of each image batch")
+    parser.add_argument("--batch_size", type=int, default=4080, help="size of each image batch")
     opt = parser.parse_args()
     print(opt)
 
@@ -115,9 +115,9 @@ if __name__ == '__main__':
 
     # test with different model
     if config['model'] == 'PSNR':
-        pred = torch.log(torch.mean((X1 - X2)**2, dim = [1,2,3]))
-        print("PSNR test:")
-        evaluation(pred, Y, mask) # 0.7319034371628678
+        tmp = torch.tensor([torch.max(X1[i]) for i in range(X1.shape[0])])
+        pred = 10 * torch.log10(tmp * tmp / torch.mean((X1 - X2) ** 2, dim=[1, 2, 3]))
+        print("PSNR test:", evaluation(pred, Y, mask))
     elif config['model'] == 'STSIM':
         from metrics.STSIM import *
         X1 = X1.to(device).double()
