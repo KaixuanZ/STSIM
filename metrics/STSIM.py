@@ -84,8 +84,8 @@ class Metric:
 			f.append(var)
 
 			c = c - mean.reshape([-1,1,1,1])
-			f.append(torch.mean(c[:, :, :-1, :] * c[:, :, 1:, :], dim=[1, 2, 3]) / var)
-			f.append(torch.mean(c[:, :, :, :-1] * c[:, :, :, 1:], dim=[1, 2, 3]) / var)
+			f.append(torch.mean(c[:, :, :-1, :] * c[:, :, 1:, :], dim=[1, 2, 3]) / (var + self.C))
+			f.append(torch.mean(c[:, :, :, :-1] * c[:, :, :, 1:], dim=[1, 2, 3]) / (var + self.C))
 
 		# correlation statistics
 		# across orientations
@@ -96,7 +96,7 @@ class Metric:
 				c2 = torch.abs(c2)
 				c2 = c2 - torch.mean(c2, dim = [1,2,3]).reshape([-1,1,1,1])
 				denom = torch.sqrt(torch.var(c1, dim = [1,2,3]) * torch.var(c2, dim = [1,2,3]))
-				f.append(torch.mean(c1*c2, dim = [1,2,3])/denom)
+				f.append(torch.mean(c1*c2, dim = [1,2,3])/(denom + self.C))
 
 		for orient in range(len(coeffs[1])):
 			for height in range(len(coeffs) - 3):
@@ -106,7 +106,8 @@ class Metric:
 				c2 = c2 - torch.mean(c2, dim=[1, 2, 3]).reshape([-1,1,1,1])
 				c1 = F.interpolate(c1, size=c2.shape[2:])
 				denom = torch.sqrt(torch.var(c1, dim = [1,2,3]) * torch.var(c2, dim = [1,2,3]))
-				f.append(torch.mean(c1*c2, dim = [1,2,3])/denom)
+				f.append(torch.mean(c1*c2, dim = [1,2,3])/(denom + self.C))
+
 		return torch.stack(f).T # [BatchSize, FeatureSize]
 
 	def pooling(self, img1, img2):
@@ -122,12 +123,12 @@ class Metric:
 		return Lmap
 
 	def compute_C_term(self, img1, img2):
-		mu1 = torch.mean(img1, dim = [1, 2, 3])
-		mu2 = torch.mean(img2, dim = [1, 2, 3])
+		mu1 = torch.mean(img1, dim = [1, 2, 3]).reshape(-1,1,1,1)
+		mu2 = torch.mean(img2, dim = [1, 2, 3]).reshape(-1,1,1,1)
 
-		sigma1_sq = torch.mean(img1**2, dim = [1,2,3]) - mu1 * mu1
+		sigma1_sq = torch.mean((img1 - mu1)**2, dim = [1,2,3])
 		sigma1 = torch.sqrt(sigma1_sq)
-		sigma2_sq = torch.mean(img2**2, dim = [1,2,3]) - mu2 * mu2
+		sigma2_sq = torch.mean((img2 - mu2)**2, dim = [1,2,3])
 		sigma2 = torch.sqrt(sigma2_sq)
 
 		Cmap = (2*sigma1*sigma2 + self.C)/(sigma1_sq + sigma2_sq + self.C)
@@ -139,18 +140,18 @@ class Metric:
 		img21 = img2[..., :-1]
 		img22 = img2[..., 1:]
 
-		mu11 = torch.mean(img11, dim = [1,2,3])
-		mu12 = torch.mean(img12, dim = [1,2,3])
-		mu21 = torch.mean(img21, dim = [1,2,3])
-		mu22 = torch.mean(img22, dim = [1,2,3])
+		mu11 = torch.mean(img11, dim = [1,2,3]).reshape(-1,1,1,1)
+		mu12 = torch.mean(img12, dim = [1,2,3]).reshape(-1,1,1,1)
+		mu21 = torch.mean(img21, dim = [1,2,3]).reshape(-1,1,1,1)
+		mu22 = torch.mean(img22, dim = [1,2,3]).reshape(-1,1,1,1)
 
-		sigma11_sq = torch.mean(img11**2, dim = [1,2,3]) - mu11**2
-		sigma12_sq = torch.mean(img12**2, dim = [1,2,3]) - mu12**2
-		sigma21_sq = torch.mean(img21**2, dim = [1,2,3]) - mu21**2
-		sigma22_sq = torch.mean(img22**2, dim = [1,2,3]) - mu22**2
+		sigma11_sq = torch.mean((img11 - mu11)**2, dim = [1,2,3])
+		sigma12_sq = torch.mean((img12 - mu12)**2, dim = [1,2,3])
+		sigma21_sq = torch.mean((img21 - mu21)**2, dim = [1,2,3])
+		sigma22_sq = torch.mean((img22 - mu22)**2, dim = [1,2,3])
 
-		sigma1_cross = torch.mean(img11*img12, dim = [1,2,3]) - mu11*mu12
-		sigma2_cross = torch.mean(img21*img22, dim = [1,2,3]) - mu21*mu22
+		sigma1_cross = torch.mean((img11 - mu11)*(img12 - mu12), dim = [1,2,3])
+		sigma2_cross = torch.mean((img21 - mu21)*(img22 - mu22), dim = [1,2,3])
 
 
 		rho1 = (sigma1_cross + self.C) / (torch.sqrt(sigma11_sq * sigma12_sq) + self.C)
@@ -166,18 +167,18 @@ class Metric:
 		img21 = img2[:,:, :-1, :]
 		img22 = img2[:,:, 1: , :]
 
-		mu11 = torch.mean(img11, dim = [1,2,3])
-		mu12 = torch.mean(img12, dim = [1,2,3])
-		mu21 = torch.mean(img21, dim = [1,2,3])
-		mu22 = torch.mean(img22, dim = [1,2,3])
+		mu11 = torch.mean(img11, dim = [1,2,3]).reshape(-1,1,1,1)
+		mu12 = torch.mean(img12, dim = [1,2,3]).reshape(-1,1,1,1)
+		mu21 = torch.mean(img21, dim = [1,2,3]).reshape(-1,1,1,1)
+		mu22 = torch.mean(img22, dim = [1,2,3]).reshape(-1,1,1,1)
 
-		sigma11_sq = torch.mean(img11**2, dim = [1,2,3]) - mu11**2
-		sigma12_sq = torch.mean(img12**2, dim = [1,2,3]) - mu12**2
-		sigma21_sq = torch.mean(img21**2, dim = [1,2,3]) - mu21**2
-		sigma22_sq = torch.mean(img22**2, dim = [1,2,3]) - mu22**2
+		sigma11_sq = torch.mean((img11 - mu11)**2, dim = [1,2,3])
+		sigma12_sq = torch.mean((img12 - mu12)**2, dim = [1,2,3])
+		sigma21_sq = torch.mean((img21 - mu21)**2, dim = [1,2,3])
+		sigma22_sq = torch.mean((img22 - mu22)**2, dim = [1,2,3])
 
-		sigma1_cross = torch.mean(img11*img12, dim = [1,2,3]) - mu11*mu12
-		sigma2_cross = torch.mean(img21*img22, dim = [1,2,3]) - mu21*mu22
+		sigma1_cross = torch.mean((img11 - mu11)*(img12 - mu12), dim = [1,2,3])
+		sigma2_cross = torch.mean((img21 - mu21)*(img22 - mu22), dim = [1,2,3])
 
 		rho1 = (sigma1_cross + self.C)/(torch.sqrt(sigma11_sq)*torch.sqrt(sigma12_sq) + self.C)
 		rho2 = (sigma2_cross + self.C)/(torch.sqrt(sigma21_sq)*torch.sqrt(sigma22_sq) + self.C)
@@ -187,17 +188,17 @@ class Metric:
 		return C10map
 
 	def compute_cross_term(self, img11, img12, img21, img22):
-		mu11 = torch.mean(img11, dim = [1,2,3])
-		mu12 = torch.mean(img12, dim = [1,2,3])
-		mu21 = torch.mean(img21, dim = [1,2,3])
-		mu22 = torch.mean(img22, dim = [1,2,3])
+		mu11 = torch.mean(img11, dim = [1,2,3]).reshape(-1,1,1,1)
+		mu12 = torch.mean(img12, dim = [1,2,3]).reshape(-1,1,1,1)
+		mu21 = torch.mean(img21, dim = [1,2,3]).reshape(-1,1,1,1)
+		mu22 = torch.mean(img22, dim = [1,2,3]).reshape(-1,1,1,1)
 
-		sigma11_sq = torch.mean(img11**2, dim = [1,2,3]) - mu11**2
-		sigma12_sq = torch.mean(img12**2, dim = [1,2,3]) - mu12**2
-		sigma21_sq = torch.mean(img21**2, dim = [1,2,3]) - mu21**2
-		sigma22_sq = torch.mean(img22**2, dim = [1,2,3]) - mu22**2
-		sigma1_cross = torch.mean(img11*img12, dim = [1,2,3]) - mu11*mu12
-		sigma2_cross = torch.mean(img21*img22, dim = [1,2,3]) - mu21*mu22
+		sigma11_sq = torch.mean((img11 - mu11)**2, dim = [1,2,3])
+		sigma12_sq = torch.mean((img12 - mu12)**2, dim = [1,2,3])
+		sigma21_sq = torch.mean((img21 - mu21)**2, dim = [1,2,3])
+		sigma22_sq = torch.mean((img22 - mu22)**2, dim = [1,2,3])
+		sigma1_cross = torch.mean((img11 - mu11)*(img12 - mu12), dim = [1,2,3])
+		sigma2_cross = torch.mean((img21 - mu21)*(img22 - mu22), dim = [1,2,3])
 
 		rho1 = (sigma1_cross + self.C)/(torch.sqrt(sigma11_sq*sigma12_sq) + self.C)
 		rho2 = (sigma2_cross + self.C)/(torch.sqrt(sigma21_sq*sigma22_sq) + self.C)
