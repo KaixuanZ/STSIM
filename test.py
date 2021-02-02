@@ -1,4 +1,5 @@
 import argparse
+import numpy as np
 
 from steerable.sp3Filters import sp3Filters
 from utils.dataset import Dataset
