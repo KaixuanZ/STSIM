@@ -16,8 +16,8 @@ from torch.utils.tensorboard import SummaryWriter
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    #parser.add_argument("--config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
-    parser.add_argument("--config", type=str, default="config/train_DISTS.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
+    #parser.add_argument("--config", type=str, default="config/train_DISTS.cfg", help="path to data config file")
 
     opt = parser.parse_args()
     print(opt)
