@@ -97,6 +97,9 @@ if __name__ == '__main__':
                 print('validation iter ' + str(i) + ' :', val)
             if i % checkpoint_interval == 0:    # save weights
                 torch.save(model.state_dict(), os.path.join(config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
+        import pdb;
+
+        pdb.set_trace()
 
     elif config['model'] == 'DISTS':
         # model

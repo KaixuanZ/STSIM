@@ -17,8 +17,8 @@ class MyLinear(nn.Module):
 		nn.init.xavier_uniform(self.W)
 		self.b = nn.Parameter(torch.ones(output_size))
 
-	def forward(self, x):
-		return torch.addmm(self.b, x, torch.sigmoid(self.W))
+	def forward(self, x, beta=0):
+		return torch.addmm(self.b, x, torch.sigmoid(self.W), beta=beta)
 
 class Metric:
 	# implementation of STSIM global (no sliding window), as the global version has a better performance, and also easier to implement
@@ -271,7 +271,7 @@ class STSIM_M(torch.nn.Module):
 			pred = self.linear(torch.abs(X1 - X2))  # [N, 1]
 			return torch.sigmoid(pred)
 		elif self.mode == 3:
-			# performance on Jana's dataset: PLCC: 0.976, SRCC: 0.975, KRCC: 0.933 (with bias term in MyLinear)
+			# performance on Jana's dataset: PLCC: 0.968, SRCC: 0.969, KRCC: 0.921 (without bias term in MyLinear)
 			pred = self.linear(torch.abs(X1 - X2))  # [N, dim]
 			pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
 			return torch.sqrt(pred)  # [N, 1]
