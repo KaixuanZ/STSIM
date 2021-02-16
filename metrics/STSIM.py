@@ -270,6 +270,7 @@ class STSIM_M(torch.nn.Module):
 			#             For mse loss, use sigmoid would get better result
 			#             pred = torch.sigmoid(self.linear(torch.abs(X1-X2))) # [N, 1]
 			#             return pred
+			# performance on Jana's dataset: PLCC: 0.974, SRCC: 0.963, KRCC: 0.91
 			pred = self.linear(torch.abs(X1 - X2))  # [N, 1]
 			return torch.sigmoid(pred)
 		elif self.mode == 3:
