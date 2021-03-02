@@ -126,20 +126,18 @@ if __name__ == '__main__':
         Y = Y.to(device).double()
         mask = mask.to(device).double()
         m_g = Metric(sp3Filters, device=device)
-        import pdb;
 
-        pdb.set_trace()
-        #pred = m_g.STSIM(X1, X2)
-        #print("STSIM-1 test:", evaluation(pred, Y, mask)) # 0.8158
+        pred = m_g.STSIM(X1, X2)
+        print("STSIM-1 test:", evaluation(pred, Y, mask)) # {'PLCC': 0.834, 'SRCC': 0.82, 'KRCC': 0.708}
 
-        #pred = m_g.STSIM2(X1, X2)
-        #print("STSIM-2 test:", evaluation(pred, Y, mask))  # 0.8517
+        pred = m_g.STSIM2(X1, X2)
+        print("STSIM-2 test:", evaluation(pred, Y, mask))  #  {'PLCC': 0.899, 'SRCC': 0.881, 'KRCC': 0.775}
 
         model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), device = device)
         model.load_state_dict(torch.load(config['weights_path']))
         model.to(device).double()
         pred = model(X1, X2)
-        print("STSIM-M test:", evaluation(pred, Y, mask)) # 0.975
+        print("STSIM-M test:", evaluation(pred, Y, mask)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
         import pdb;
 
         pdb.set_trace()
