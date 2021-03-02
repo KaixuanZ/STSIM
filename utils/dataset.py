@@ -6,7 +6,7 @@ import torch
 import torchvision.transforms as transforms
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, data_dir, label_file, dist_folder, ref_folder = 'original', format = '.png'):
+    def __init__(self, data_dir, label_file, dist_folder, ref_folder = 'original', format = '.png', maskshape=None):
         self.dist_dir = os.path.join(data_dir, dist_folder)
         self.ref_dir = os.path.join(data_dir, ref_folder)
         self.label_file = os.path.join(data_dir, label_file)
@@ -16,6 +16,15 @@ class Dataset(torch.utils.data.Dataset):
         clean_names = lambda x: [i for i in x if i[0] != '.']
         self.dist_img_paths = [os.path.join(self.dist_dir, img) for img in os.listdir(self.dist_dir)]
         self.dist_img_paths = sorted(clean_names(self.dist_img_paths))
+        self.mask = None
+
+        if maskshape is not None:
+            self.mask = torch.zeros([1,128,128])
+            for i in range(self.mask.shape[1]):
+                for j in range(self.mask.shape[2]):
+                    self.mask[0,i,j] = (-1)**(i+j)
+        else:
+            self.mask = None
 
     def __len__(self):
         return len(self.dist_img_paths)
@@ -35,7 +44,10 @@ class Dataset(torch.utils.data.Dataset):
         ref_img = Image.open(ref_img_path)
         ref_img = transforms.ToTensor()(ref_img)
 
-        return ref_img, dist_img, y, int(t)
+        if self.mask is not None:
+            return ref_img*self.mask, dist_img*self.mask, y, int(t)
+        else:
+            return ref_img, dist_img, y, int(t)
 
 
     def _getlabels(self):
