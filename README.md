@@ -4,9 +4,11 @@ Implementation of Pytorch version of STSIM metrics.
 
 ## To-do List:
 
-Waiting for new dataset, train with new data once we get it
+Rewrite STSIM-I
 
-Reproduce a few results with the latest pipeline, save model's parameters
+Validate the choice of rank by SVD
+
+Train and test with Corbis dataset, train with Corbis and test on Jana's dataset
 
 ## Reference Github Repo:
 [steerable pyramid filters](https://github.com/LabForComputationalVision/pyPyrTools)
