@@ -17,7 +17,7 @@ class Metric:
 		self.C = 1e-10
 		self.filter = filter
 
-	def STSIM(self, img1, img2, sub_sample=True):
+	def STSIM1(self, img1, img2, sub_sample=True):
 		assert img1.shape == img2.shape
 		assert len(img1.shape) == 4  # [N,C,H,W]
 		assert img1.shape[1] == 1	# gray image
@@ -83,10 +83,10 @@ class Metric:
 
 		return torch.mean(torch.stack(stsimg2), dim=0).T # [BatchSize, FeatureSize]
 
-	def STSIM_M(self, imgs, sub_sample = True):
+	def STSIM(self, imgs, sub_sample = True):
 		'''
 		:param imgs: [N,C=1,H,W]
-		:return: [N, feature dim]
+		:return: [N, feature dim] STSIM-features
 		'''
 		if self.filter is not None:
 			s =  Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
@@ -132,6 +132,39 @@ class Metric:
 				f.append(torch.mean(c1*c2, dim = [1,2,3])/(denom + self.C))
 
 		return torch.stack(f).T # [BatchSize, FeatureSize]
+
+	def STSIM_M(self, X1, X2=None, weight=None):
+		if weight is not None:
+			if len(X1.shape) == 4:
+				# the input are raw images, extract STSIM-M features
+				with torch.no_grad():
+					X1 = self.STSIM(X1)  # [N, dim of feature]
+					X2 = self.STSIM(X2)
+			pred = (X1-X2)/weight	#[N, dim of feature]
+			pred = torch.sqrt(torch.sum(pred**2,1))
+			return pred
+		else:
+			if len(X1.shape) == 4:
+				# the input are raw images, extract STSIM-M features
+				with torch.no_grad():
+					X1 = self.STSIM(X1)  # [N, dim of feature]
+			weight = X1.std(0)	#[dim of feature]
+			return weight
+
+	def STSIM_I(self, X1, X2=None, mask=None, weight=None):
+		if weight is not None:
+			self.STSIM_M(X1,X2,weight)
+		else:
+			if len(X1.shape) == 4:
+				# the input are raw images, extract STSIM-M features
+				with torch.no_grad():
+					X1 = self.STSIM(X1)  # [N, dim of feature]
+			var = torch.zeros(X1.shape[1], device=self.device)
+			for i in set(mask.detach().cpu().numpy()):
+				X1_i = X1[mask==i]
+				X1_i = X1_i - X1_i.mean(0)	# substract intra-class mean [N, dim of feature]
+				var += (X1_i**2).sum(0)		# square sum	for all intra-class sample [dim of feature]
+			return torch.sqrt(var/X1.shape[0])
 
 	def pooling(self, img1, img2):
 		#img1 = torch.abs(img1)
@@ -243,12 +276,12 @@ class STSIM_M(torch.nn.Module):
 		self.device = torch.device('cpu') if device is None else device
 		self.mode = mode
 		self.filter = filter
-		if self.mode == 0:  # STSIM_M_F
+		if self.mode == 0:  # factorization
 			self.linear = nn.Linear(dim[0], dim[1])
-		elif self.mode == 1:  # STSIM_M_R
+		elif self.mode == 1:  # regression
 			self.hidden = torch.nn.Linear(dim[0], dim[0])
 			self.predict = torch.nn.Linear(dim[0], 1)
-		elif self.mode == 2:  # STSIM_M
+		elif self.mode == 2:  # diagnoal Mahalanobis
 			self.linear = nn.Linear(dim[0], 1)
 
 	def forward(self, X1, X2):
@@ -262,9 +295,9 @@ class STSIM_M(torch.nn.Module):
 			# the input are raw images, extract STSIM-M features
 			m = Metric(self.filter, device=self.device)
 			with torch.no_grad():
-				X1 = m.STSIM_M(X1)
-				X2 = m.STSIM_M(X2)
-		if self.mode == 0:  # STSIM_M_F
+				X1 = m.STSIM(X1)
+				X2 = m.STSIM(X2)
+		if self.mode == 0:  # STSIM_F
 			#             For mse loss, use sigmoid and do not use sqrt on the output would get better result
 			#             pred = F.sigmoid(self.linear(torch.abs(X1-X2)))	# [N, dim]
 			#             pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)	# inner-prod
@@ -272,11 +305,11 @@ class STSIM_M(torch.nn.Module):
 			pred = self.linear(torch.abs(X1 - X2))  # [N, dim]
 			pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
 			return torch.sqrt(pred)  # [N, 1]
-		elif self.mode == 1:  # STSIM_M_R
+		elif self.mode == 1:  # STSIM_R
 			pred = F.relu(self.hidden(torch.abs(X1 - X2)))
 			pred = torch.sigmoid(self.predict(pred))
 			return pred
-		elif self.mode == 2:  # STSIM_M data driven
+		elif self.mode == 2:  # STSIM data driven
 			#             For mse loss, use sigmoid would get better result
 			#             pred = torch.sigmoid(self.linear(torch.abs(X1-X2))) # [N, 1]
 			#             return pred

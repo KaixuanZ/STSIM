@@ -133,19 +133,30 @@ if __name__ == '__main__':
             print('using steerable filter')
         m_g = Metric(filter, device=device)
 
-        pred = m_g.STSIM(X1, X2)
+        pred = m_g.STSIM1(X1, X2)
         print("STSIM-1 test:", evaluation(pred, Y, mask)) # {'PLCC': 0.834, 'SRCC': 0.82, 'KRCC': 0.708}
 
         pred = m_g.STSIM2(X1, X2)
         print("STSIM-2 test:", evaluation(pred, Y, mask))  #  {'PLCC': 0.899, 'SRCC': 0.881, 'KRCC': 0.775}
 
+        path = config['weights_path'].split('/')
+        path[-1] = 'STSIM-M.pt'
+        weight_M = torch.load('/'.join(path))
+        pred = m_g.STSIM_M(X1, X2, weight=weight_M)
+        print("STSIM-M test:", evaluation(pred, Y, mask))  #  {'PLCC': 0.874, 'SRCC': 0.834, 'KRCC': 0.73}
+
+        path = config['weights_path'].split('/')
+        path[-1] = 'STSIM-I.pt'
+        weight_I = torch.load('/'.join(path))
+        pred = m_g.STSIM_M(X1, X2, weight=weight_I)
+        print("STSIM-I test:", evaluation(pred, Y, mask))  #  {'PLCC': 0.894, 'SRCC': 0.852, 'KRCC': 0.736}
+
         model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), filter = filter, device = device)
         model.load_state_dict(torch.load(config['weights_path']))
         model.to(device).double()
         pred = model(X1, X2)
-        print("STSIM-M test:", evaluation(pred, Y, mask)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
+        print("STSIM-M (trained) test:", evaluation(pred, Y, mask)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
         import pdb;
-
         pdb.set_trace()
 
     elif config['model'] == 'DISTS':

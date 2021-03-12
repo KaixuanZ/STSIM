@@ -69,14 +69,27 @@ if __name__ == '__main__':
         elif config['filter']=='SF':    # steerable filter
             m = Metric(sp3Filters, device)
         # STSIM-M features
-        X1_train = m.STSIM_M(X1_train.double().to(device))
-        X2_train = m.STSIM_M(X2_train.double().to(device))
-        X1_valid = m.STSIM_M(X1_valid.double().to(device))
-        X2_valid = m.STSIM_M(X2_valid.double().to(device))
+        X1_train = m.STSIM(X1_train.double().to(device))
+        X2_train = m.STSIM(X2_train.double().to(device))
+        X1_valid = m.STSIM(X1_valid.double().to(device))
+        X2_valid = m.STSIM(X2_valid.double().to(device))
         Y_train = Y_train.to(device)
         Y_valid = Y_valid.to(device)
         mask_train = mask_train.to(device)
         mask_valid = mask_valid.to(device)
+
+        # collect all data and estimate STSIM-M and STSIM-I
+        X_train = [X1_train[mask_train==i][0:1] for i in set(mask_train.detach().cpu().numpy())]
+        mask_I = [mask_train[mask_train==i][0:1]  for i in set(mask_train.detach().cpu().numpy())]
+        X_train.append(X2_train)
+        mask_I.append(mask_train)
+        X_train = torch.cat(X_train)
+        mask_I = torch.cat(mask_I)
+
+        weight_M = m.STSIM_M(X_train)   #STSIM-M
+        torch.save(weight_M, os.path.join(config['weights_path'],'STSIM-M.pt'))
+        weight_I = m.STSIM_I(X_train, mask = mask_I)    #STSIM-I
+        torch.save(weight_I, os.path.join(config['weights_path'],'STSIM-I.pt'))
 
         mode = int(config['mode'])
         # learnable parameters
