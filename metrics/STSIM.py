@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 import sys
 sys.path.append('..')
-#from steerable.Spyr_PyTorch import Spyr_PyTorch
+from steerable.Spyr_PyTorch import Spyr_PyTorch
 from steerable.SCFpyr_PyTorch import SCFpyr_PyTorch
 
 class MyLinear(nn.Module):
@@ -23,7 +23,7 @@ class MyLinear(nn.Module):
 
 class Metric:
 	# implementation of STSIM global (no sliding window), as the global version has a better performance, and also easier to implement
-	def __init__(self, filter, device=None):
+	def __init__(self, filter=None, device=None):
 		self.device = torch.device('cpu') if device is None else device
 		self.C = 1e-10
 		self.filter = filter
@@ -33,13 +33,14 @@ class Metric:
 		assert len(img1.shape) == 4  # [N,C,H,W]
 		assert img1.shape[1] == 1	# gray image
 
-		#s = Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
-		s = SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
-
-		#pyrA = s.getlist(s.buildSpyr(img1))
-		pyrA = s.getlist(s.build(img1))
-		#pyrB = s.getlist(s.buildSpyr(img2))
-		pyrB = s.getlist(s.build(img2))
+		if self.filter is not None:
+			s = Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
+			pyrA = s.getlist(s.buildSpyr(img1))
+			pyrB = s.getlist(s.buildSpyr(img2))
+		else:
+			s = SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
+			pyrA = s.getlist(s.build(img1))
+			pyrB = s.getlist(s.build(img2))
 
 		stsim = map(self.pooling, pyrA, pyrB)
 
@@ -48,19 +49,20 @@ class Metric:
 	def STSIM2(self, img1, img2, sub_sample=True):
 		assert img1.shape == img2.shape
 
-		#s = Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
-		s = SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
-
-		#pyrA = s.buildSpyr(img1)
-		pyrA = s.build(img1)
-		for i in range(1,4):
-			for j in range(0,4):
-				pyrA[i][j] = torch.sqrt(pyrA[i][j][..., 0]**2 + pyrA[i][j][..., 1]**2)
-		#pyrB = s.buildSpyr(img2)
-		pyrB = s.build(img2)
-		for i in range(1,4):
-			for j in range(0,4):
-				pyrB[i][j] = torch.sqrt(pyrB[i][j][..., 0]**2 + pyrB[i][j][..., 1]**2)
+		if self.filter is not None:
+			s = Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
+			pyrA = s.buildSpyr(img1)
+			pyrB = s.buildSpyr(img2)
+		else:
+			s = SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
+			pyrA = s.build(img1)
+			for i in range(1,4):
+				for j in range(0,4):
+					pyrA[i][j] = torch.sqrt(pyrA[i][j][..., 0]**2 + pyrA[i][j][..., 1]**2)
+			pyrB = s.build(img2)
+			for i in range(1,4):
+				for j in range(0,4):
+					pyrB[i][j] = torch.sqrt(pyrB[i][j][..., 0]**2 + pyrB[i][j][..., 1]**2)
 
 		stsimg2 = list(map(self.pooling, s.getlist(pyrA), s.getlist(pyrB)))
 
@@ -97,13 +99,15 @@ class Metric:
 		:param imgs: [N,C=1,H,W]
 		:return: [N, feature dim]
 		'''
-		#s =  Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
-		s =  SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
-		#coeffs = s.buildSpyr(imgs)
-		coeffs = s.build(imgs)
-		for i in range(1,4):
-			for j in range(0,4):
-				coeffs[i][j] = torch.sqrt(coeffs[i][j][..., 0]**2 + coeffs[i][j][..., 1]**2)
+		if self.filter is not None:
+			s =  Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
+			coeffs = s.buildSpyr(imgs)
+		else:
+			s =  SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
+			coeffs = s.build(imgs)
+			for i in range(1,4):
+				for j in range(0,4):
+					coeffs[i][j] = torch.sqrt(coeffs[i][j][..., 0]**2 + coeffs[i][j][..., 1]**2)
 
 		f = []
 		# single subband statistics

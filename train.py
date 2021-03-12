@@ -64,7 +64,10 @@ if __name__ == '__main__':
 
         from steerable.sp3Filters import sp3Filters
         from metrics.STSIM import *
-        m = Metric(sp3Filters, device)
+        if config['filter']=='SCF':     # steerable complex filter
+            m = Metric(None, device)
+        elif config['filter']=='SF':    # steerable filter
+            m = Metric(sp3Filters, device)
         # STSIM-M features
         X1_train = m.STSIM_M(X1_train.double().to(device))
         X2_train = m.STSIM_M(X2_train.double().to(device))
