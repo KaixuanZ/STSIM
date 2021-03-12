@@ -232,7 +232,7 @@ class Metric:
 		return Crossmap
 
 class STSIM_M(torch.nn.Module):
-	def __init__(self, dim, mode=0, device=None):
+	def __init__(self, dim, mode=0, filter=None, device=None):
 		'''
 		Args:
 			mode: regression, STSIM-M
@@ -242,6 +242,7 @@ class STSIM_M(torch.nn.Module):
 
 		self.device = torch.device('cpu') if device is None else device
 		self.mode = mode
+		self.filter = filter
 		if self.mode == 0:  # STSIM_M_F
 			self.linear = nn.Linear(dim[0], dim[1])
 		elif self.mode == 1:  # STSIM_M_R
@@ -259,8 +260,7 @@ class STSIM_M(torch.nn.Module):
 		'''
 		if len(X1.shape) == 4:
 			# the input are raw images, extract STSIM-M features
-			from steerable.sp3Filters import sp3Filters
-			m = Metric(sp3Filters, device=self.device)
+			m = Metric(self.filter, device=self.device)
 			with torch.no_grad():
 				X1 = m.STSIM_M(X1)
 				X2 = m.STSIM_M(X2)
