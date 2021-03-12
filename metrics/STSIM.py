@@ -10,17 +10,6 @@ sys.path.append('..')
 from steerable.Spyr_PyTorch import Spyr_PyTorch
 from steerable.SCFpyr_PyTorch import SCFpyr_PyTorch
 
-class MyLinear(nn.Module):
-	# parameters are between 0 and 1
-	def __init__(self, input_size, output_size):
-		super().__init__()
-		self.W = nn.Parameter(torch.zeros(input_size, output_size))
-		nn.init.xavier_uniform(self.W)
-		self.b = nn.Parameter(torch.ones(output_size))
-
-	def forward(self, x, beta=1):
-		return torch.addmm(torch.sigmoid(self.b), x, torch.sigmoid(self.W), beta=beta)
-
 class Metric:
 	# implementation of STSIM global (no sliding window), as the global version has a better performance, and also easier to implement
 	def __init__(self, filter=None, device=None):
@@ -260,10 +249,6 @@ class STSIM_M(torch.nn.Module):
 			self.predict = torch.nn.Linear(dim[0], 1)
 		elif self.mode == 2:  # STSIM_M
 			self.linear = nn.Linear(dim[0], 1)
-		elif self.mode == 3:
-			self.linear = MyLinear(dim[0], dim[1])
-		elif self.mode == 4:
-			self.linear = MyLinear(dim[0], 1)
 
 	def forward(self, X1, X2):
 		'''
@@ -298,15 +283,7 @@ class STSIM_M(torch.nn.Module):
 			# performance on Jana's dataset: PLCC: 0.974, SRCC: 0.963, KRCC: 0.91
 			pred = self.linear(torch.abs(X1 - X2))  # [N, 1]
 			return torch.sigmoid(pred)
-		elif self.mode == 3:
-			# performance on Jana's dataset: PLCC: 0.968, SRCC: 0.969, KRCC: 0.921 (without bias term in MyLinear)
-			pred = self.linear(torch.abs(X1 - X2))  # [N, dim]
-			pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
-			return torch.sqrt(pred)  # [N, 1]
-		elif self.mode == 4:
-			pred = self.linear(torch.abs(X1 - X2))
-			return pred
 
 if __name__ == '__main__':
-	tmp = MyLinear(82,10)
+
 	import pdb;pdb.set_trace()
