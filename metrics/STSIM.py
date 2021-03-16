@@ -10,6 +10,16 @@ sys.path.append('..')
 from steerable.Spyr_PyTorch import Spyr_PyTorch
 from steerable.SCFpyr_PyTorch import SCFpyr_PyTorch
 
+class MyLinear(nn.Module):
+	# parameters are between 0 and 1
+	def __init__(self, input_size, output_size):
+		super().__init__()
+		self.W = nn.Parameter(torch.zeros(input_size, output_size))
+		nn.init.xavier_uniform(self.W)
+
+	def forward(self, x):
+		return torch.mm(x, torch.sigmoid(self.W)*10**3)
+
 class Metric:
 	# implementation of STSIM global (no sliding window), as the global version has a better performance, and also easier to implement
 	def __init__(self, filter=None, device=None):
@@ -276,13 +286,16 @@ class STSIM_M(torch.nn.Module):
 		self.device = torch.device('cpu') if device is None else device
 		self.mode = mode
 		self.filter = filter
-		if self.mode == 0:  # factorization
+		if self.mode == 0:  	# factorization
 			self.linear = nn.Linear(dim[0], dim[1])
-		elif self.mode == 1:  # regression
-			self.hidden = torch.nn.Linear(dim[0], dim[0])
-			self.predict = torch.nn.Linear(dim[0], 1)
-		elif self.mode == 2:  # diagnoal Mahalanobis
+		elif self.mode == 1:  	# 3-layer neural net
+			self.hidden = nn.Linear(dim[0], dim[0])
+			self.predict = nn.Linear(dim[0], 1)
+		elif self.mode == 2:  	# regression
 			self.linear = nn.Linear(dim[0], 1)
+		elif self.mode == 3:	# diagonal Mahalanobis
+			#self.linear = nn.Linear(dim[0], 1)
+			self.linear = MyLinear(dim[0], 1)
 
 	def forward(self, X1, X2):
 		'''
@@ -297,25 +310,20 @@ class STSIM_M(torch.nn.Module):
 			with torch.no_grad():
 				X1 = m.STSIM(X1)
 				X2 = m.STSIM(X2)
-		if self.mode == 0:  # STSIM_F
-			#             For mse loss, use sigmoid and do not use sqrt on the output would get better result
-			#             pred = F.sigmoid(self.linear(torch.abs(X1-X2)))	# [N, dim]
-			#             pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)	# inner-prod
-			#             return pred
+		if self.mode == 0:  # STSIM_Mf
 			pred = self.linear(torch.abs(X1 - X2))  # [N, dim]
 			pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
 			return torch.sqrt(pred)  # [N, 1]
-		elif self.mode == 1:  # STSIM_R
+		elif self.mode == 1:  # 3-layer neural net STSIM-NN
 			pred = F.relu(self.hidden(torch.abs(X1 - X2)))
 			pred = torch.sigmoid(self.predict(pred))
 			return pred
-		elif self.mode == 2:  # STSIM data driven
-			#             For mse loss, use sigmoid would get better result
-			#             pred = torch.sigmoid(self.linear(torch.abs(X1-X2))) # [N, 1]
-			#             return pred
-			# performance on Jana's dataset: PLCC: 0.974, SRCC: 0.963, KRCC: 0.91
+		elif self.mode == 2:  # regression
 			pred = self.linear(torch.abs(X1 - X2))  # [N, 1]
 			return torch.sigmoid(pred)
+		elif self.mode == 3:  # STSIM (diagonal) data driven STSIM-Md
+			pred = self.linear(torch.abs(X1 - X2)**2)  # [N, 1]
+			return torch.sqrt(pred)
 
 if __name__ == '__main__':
 
