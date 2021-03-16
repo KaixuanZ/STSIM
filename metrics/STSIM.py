@@ -163,7 +163,7 @@ class Metric:
 
 	def STSIM_I(self, X1, X2=None, mask=None, weight=None):
 		if weight is not None:
-			self.STSIM_M(X1,X2,weight)
+			return self.STSIM_M(X1,X2,weight)
 		else:
 			if len(X1.shape) == 4:
 				# the input are raw images, extract STSIM-M features

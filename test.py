@@ -148,7 +148,7 @@ if __name__ == '__main__':
         path = config['weights_path'].split('/')
         path[-1] = 'STSIM-I.pt'
         weight_I = torch.load('/'.join(path))
-        pred = m_g.STSIM_M(X1, X2, weight=weight_I)
+        pred = m_g.STSIM_I(X1, X2, weight=weight_I)
         print("STSIM-I test:", evaluation(pred, Y, mask))  #  {'PLCC': 0.894, 'SRCC': 0.852, 'KRCC': 0.736}
 
         model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), filter = filter, device = device)
