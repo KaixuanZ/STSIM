@@ -62,7 +62,7 @@ if __name__ == '__main__':
         X1_train, X2_train, Y_train, mask_train = next(iter(train_loader))
         X1_valid, X2_valid, Y_valid, mask_valid = next(iter(valid_loader))
 
-        from steerable.sp3Filters import sp3Filters
+        from filterbank.sp3Filters import sp3Filters
         from metrics.STSIM import *
         if config['filter']=='SCF':     # steerable complex filter
             m = Metric(None, device)

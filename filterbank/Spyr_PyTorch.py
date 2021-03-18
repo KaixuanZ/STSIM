@@ -1,4 +1,4 @@
-# pytorch implementation of steerable pyramid filter
+# pytorch implementation of filterbank pyramid filter
 import cv2
 import torch
 import torch.nn.functional as F
@@ -19,7 +19,7 @@ class Spyr_PyTorch(object):
         self.nbands = nbands  # number of orientation bands
         self.device = torch.device('cpu') if device is None else device
 
-        self.filter = filter(self.device)    # parameters of steerable filters
+        self.filter = filter(self.device)    # parameters of filterbank filters
         self.wsize = wsize
         self.sub_sample = sub_sample
 

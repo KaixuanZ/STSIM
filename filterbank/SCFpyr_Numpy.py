@@ -19,7 +19,7 @@ from __future__ import print_function
 import numpy as np
 from scipy.misc import factorial
 
-import steerable.math_utils as math_utils
+import filterbank.math_utils as math_utils
 
 pointOp = math_utils.pointOp
 
@@ -29,8 +29,8 @@ pointOp = math_utils.pointOp
 class SCFpyr_NumPy():
     '''
     This is a modified version of buildSFpyr, that constructs a
-    complex-valued steerable pyramid  using Hilbert-transform pairs
-    of filters. Note that the imaginary parts will *not* be steerable.
+    complex-valued filterbank pyramid  using Hilbert-transform pairs
+    of filters. Note that the imaginary parts will *not* be filterbank.
 
     Description of this transform appears in: Portilla & Simoncelli,
     International Journal of Computer Vision, 40(1):49-71, Oct 2000.
@@ -61,7 +61,7 @@ class SCFpyr_NumPy():
     # Construction of Steerable Pyramid
 
     def build(self, im):
-        ''' Decomposes an image into it's complex steerable pyramid.
+        ''' Decomposes an image into it's complex filterbank pyramid.
         The pyramid typically has ~4 levels and 4-8 orientations.
 
         Args:
@@ -95,7 +95,7 @@ class SCFpyr_NumPy():
         # Low-pass
         lo0dft = imdft * lo0mask
 
-        # Recursive build the steerable pyramid
+        # Recursive build the filterbank pyramid
         coeff = self._build_levels(lo0dft, log_rad, angle, Xrcos, Yrcos, self.height - 1)
 
         # High-pass

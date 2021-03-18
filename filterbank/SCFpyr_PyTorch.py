@@ -18,7 +18,7 @@ from __future__ import print_function
 
 import numpy as np
 import torch
-import steerable.math_utils as math_utils
+import filterbank.math_utils as math_utils
 from scipy.special import factorial
 
 pointOp = math_utils.pointOp
@@ -31,8 +31,8 @@ pointOp = math_utils.pointOp
 class SCFpyr_PyTorch(object):
     '''
     This is a modified version of buildSFpyr, that constructs a
-    complex-valued steerable pyramid  using Hilbert-transform pairs
-    of filters. Note that the imaginary parts will *not* be steerable.
+    complex-valued filterbank pyramid  using Hilbert-transform pairs
+    of filters. Note that the imaginary parts will *not* be filterbank.
 
     Description of this transform appears in: Portilla & Simoncelli,
     International Journal of Computer Vision, 40(1):49-71, Oct 2000.
@@ -67,7 +67,7 @@ class SCFpyr_PyTorch(object):
     # Construction of Steerable Pyramid
 
     def build(self, im_batch):
-        ''' Decomposes a batch of images into a complex steerable pyramid.
+        ''' Decomposes a batch of images into a complex filterbank pyramid.
         The pyramid typically has ~4 levels and 4-8 orientations.
 
         Args:

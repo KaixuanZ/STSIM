@@ -7,8 +7,8 @@ import torch.nn.functional as F
 
 import sys
 sys.path.append('..')
-from steerable.Spyr_PyTorch import Spyr_PyTorch
-from steerable.SCFpyr_PyTorch import SCFpyr_PyTorch
+from filterbank.Spyr_PyTorch import Spyr_PyTorch
+from filterbank.SCFpyr_PyTorch import SCFpyr_PyTorch
 
 class MyLinear(nn.Module):
 	# parameters are between 0 and 1
