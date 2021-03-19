@@ -22,46 +22,41 @@ class MyLinear(nn.Module):
 
 class Metric:
 	# implementation of STSIM global (no sliding window), as the global version has a better performance, and also easier to implement
-	def __init__(self, filter=None, device=None):
+	def __init__(self, filter=None, device=None, sub_sample=True):
 		self.device = torch.device('cpu') if device is None else device
 		self.C = 1e-10
 		self.filter = filter
+		if self.filter is not None:
+			self.fb = Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
+		else:
+			self.fb = SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
 
-	def STSIM1(self, img1, img2, sub_sample=True):
+	def STSIM1(self, img1, img2):
 		assert img1.shape == img2.shape
 		assert len(img1.shape) == 4  # [N,C,H,W]
 		assert img1.shape[1] == 1	# gray image
 
-		if self.filter is not None:
-			s = Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
-		else:
-			s = SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
-		pyrA = s.getlist(s.build(img1))
-		pyrB = s.getlist(s.build(img2))
+		pyrA = self.fb.getlist(self.fb.build(img1))
+		pyrB = self.fb.getlist(self.fb.build(img2))
 
 		stsim = map(self.pooling, pyrA, pyrB)
 
 		return torch.mean(torch.stack(list(stsim)), dim=0).T # [BatchSize, FeatureSize]
 
-	def STSIM2(self, img1, img2, sub_sample=True):
+	def STSIM2(self, img1, img2):
 		assert img1.shape == img2.shape
 
-		if self.filter is not None:
-			s = Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
-			pyrA = s.build(img1)
-			pyrB = s.build(img2)
-		else:
-			s = SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
-			pyrA = s.build(img1)
+		pyrA = self.fb.build(img1)
+		pyrB = self.fb.build(img2)
+		if self.filter is None:
 			for i in range(1,4):
 				for j in range(0,4):
 					pyrA[i][j] = torch.sqrt(pyrA[i][j][..., 0]**2 + pyrA[i][j][..., 1]**2)
-			pyrB = s.build(img2)
 			for i in range(1,4):
 				for j in range(0,4):
 					pyrB[i][j] = torch.sqrt(pyrB[i][j][..., 0]**2 + pyrB[i][j][..., 1]**2)
 
-		stsimg2 = list(map(self.pooling, s.getlist(pyrA), s.getlist(pyrB)))
+		stsimg2 = list(map(self.pooling, self.fb.getlist(pyrA), self.fb.getlist(pyrB)))
 
 		Nor = len(pyrA[1])
 
@@ -91,24 +86,20 @@ class Metric:
 
 		return torch.mean(torch.stack(stsimg2), dim=0).T # [BatchSize, FeatureSize]
 
-	def STSIM(self, imgs, sub_sample = True):
+	def STSIM(self, imgs):
 		'''
 		:param imgs: [N,C=1,H,W]
 		:return: [N, feature dim] STSIM-features
 		'''
-		if self.filter is not None:
-			s =  Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
-			coeffs = s.build(imgs)
-		else:
-			s =  SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
-			coeffs = s.build(imgs)
+		coeffs = self.fb.build(imgs)
+		if self.filter is None:
 			for i in range(1,4):
 				for j in range(0,4):
 					coeffs[i][j] = torch.sqrt(coeffs[i][j][..., 0]**2 + coeffs[i][j][..., 1]**2)
 
 		f = []
 		# single subband statistics
-		for c in s.getlist(coeffs):
+		for c in self.fb.getlist(coeffs):
 			mean = torch.mean(c, dim = [1,2,3])
 			var = torch.var(c, dim = [1,2,3])
 			f.append(mean)
