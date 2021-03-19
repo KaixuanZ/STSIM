@@ -23,7 +23,7 @@ class Spyr_PyTorch(object):
         self.wsize = wsize
         self.sub_sample = sub_sample
 
-    def buildSpyr(self, img):
+    def build(self, img):
         '''
         :param img [N,C=1,H,W]
         :return:
@@ -34,9 +34,9 @@ class Spyr_PyTorch(object):
         hi0 = self._conv2d(img, hi0filt)
         lo0 = self._conv2d(img, lo0filt)
 
-        return [hi0] + self._buildSpyrLevs(lo0, self.height-1)
+        return [hi0] + self._buildLevs(lo0, self.height-1)
 
-    def _buildSpyrLevs(self, lo0, height):
+    def _buildLevs(self, lo0, height):
         if height<=1:
             return [lo0]
 
@@ -49,7 +49,7 @@ class Spyr_PyTorch(object):
         if self.sub_sample:    # sub-sampling
             lo = lo[:,:,::2,::2]    # same as F.interpolate
 
-        return [coeffs] + self._buildSpyrLevs(lo, height-1)
+        return [coeffs] + self._buildLevs(lo, height-1)
 
     def _conv2d(self, img, kernel):
         # circular padding
@@ -71,14 +71,13 @@ class Spyr_PyTorch(object):
 if __name__ == "__main__":
     device = torch.device('cuda:0')
     from sp3Filters import sp3Filters
-    s = Spyr_PyTorch(sp3Filters, sub_sample=False, device = device)
+    s = Spyr_PyTorch(sp3Filters, sub_sample=True, device = device)
 
-    image_path = '../data/scenes_distorted/0_0.tiff'
+    image_path = '../data/0.png'
     img = cv2.imread(image_path, 0)
-    img = img[0:img.shape[0]//2, :]
     img = torch.tensor(img).to(device)
     img = img.unsqueeze(0).unsqueeze(0).float()/255
 
     import pdb;
     pdb.set_trace()
-    coeffs = s.buildSpyr(img)
+    coeffs = s.build(img.double())

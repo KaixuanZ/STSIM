@@ -34,12 +34,10 @@ class Metric:
 
 		if self.filter is not None:
 			s = Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
-			pyrA = s.getlist(s.buildSpyr(img1))
-			pyrB = s.getlist(s.buildSpyr(img2))
 		else:
 			s = SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
-			pyrA = s.getlist(s.build(img1))
-			pyrB = s.getlist(s.build(img2))
+		pyrA = s.getlist(s.build(img1))
+		pyrB = s.getlist(s.build(img2))
 
 		stsim = map(self.pooling, pyrA, pyrB)
 
@@ -50,8 +48,8 @@ class Metric:
 
 		if self.filter is not None:
 			s = Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
-			pyrA = s.buildSpyr(img1)
-			pyrB = s.buildSpyr(img2)
+			pyrA = s.build(img1)
+			pyrB = s.build(img2)
 		else:
 			s = SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
 			pyrA = s.build(img1)
@@ -100,7 +98,7 @@ class Metric:
 		'''
 		if self.filter is not None:
 			s =  Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
-			coeffs = s.buildSpyr(imgs)
+			coeffs = s.build(imgs)
 		else:
 			s =  SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
 			coeffs = s.build(imgs)
