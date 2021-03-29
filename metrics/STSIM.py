@@ -9,6 +9,8 @@ import sys
 sys.path.append('..')
 from filterbank.Spyr_PyTorch import Spyr_PyTorch
 from filterbank.SCFpyr_PyTorch import SCFpyr_PyTorch
+from filterbank.DCT import DCT
+from filterbank.sp3Filters import sp3Filters
 
 class MyLinear(nn.Module):
 	# parameters are between 0 and 1
@@ -26,18 +28,29 @@ class Metric:
 		self.device = torch.device('cpu') if device is None else device
 		self.C = 1e-10
 		self.filter = filter
-		if self.filter is not None:
-			self.fb = Spyr_PyTorch(self.filter, sub_sample = sub_sample, device = self.device)
-		else:
+		if self.filter == 'SF':
+			self.fb = Spyr_PyTorch(sp3Filters, sub_sample = sub_sample, device = self.device)
+		elif self.filter == 'SCF':
 			self.fb = SCFpyr_PyTorch(sub_sample = sub_sample, device = self.device)
+		elif self.filter == 'DCT':
+			self.fb = DCT(device = self.device)
 
 	def STSIM1(self, img1, img2):
 		assert img1.shape == img2.shape
 		assert len(img1.shape) == 4  # [N,C,H,W]
 		assert img1.shape[1] == 1	# gray image
 
-		pyrA = self.fb.getlist(self.fb.build(img1))
-		pyrB = self.fb.getlist(self.fb.build(img2))
+		pyrA = self.fb.build(img1)
+		pyrB = self.fb.build(img2)
+		if self.filter == 'SCF':	# complex to real
+			for i in range(1,4):
+				for j in range(0,4):
+					pyrA[i][j] = torch.sqrt(pyrA[i][j][..., 0]**2 + pyrA[i][j][..., 1]**2)
+			for i in range(1,4):
+				for j in range(0,4):
+					pyrB[i][j] = torch.sqrt(pyrB[i][j][..., 0]**2 + pyrB[i][j][..., 1]**2)
+		pyrA = self.fb.getlist(pyrA)
+		pyrB = self.fb.getlist(pyrB)
 
 		stsim = map(self.pooling, pyrA, pyrB)
 
@@ -48,7 +61,7 @@ class Metric:
 
 		pyrA = self.fb.build(img1)
 		pyrB = self.fb.build(img2)
-		if self.filter is None:
+		if self.filter == 'SCF':	# complex to real
 			for i in range(1,4):
 				for j in range(0,4):
 					pyrA[i][j] = torch.sqrt(pyrA[i][j][..., 0]**2 + pyrA[i][j][..., 1]**2)
@@ -92,7 +105,7 @@ class Metric:
 		:return: [N, feature dim] STSIM-features
 		'''
 		coeffs = self.fb.build(imgs)
-		if self.filter is None:
+		if self.filter == 'SCF':	# complex to real
 			for i in range(1,4):
 				for j in range(0,4):
 					coeffs[i][j] = torch.sqrt(coeffs[i][j][..., 0]**2 + coeffs[i][j][..., 1]**2)
@@ -166,8 +179,6 @@ class Metric:
 			return torch.sqrt(var/X1.shape[0])
 
 	def pooling(self, img1, img2):
-		#img1 = torch.abs(img1)
-		#img2 = torch.abs(img2)
 		tmp = self.compute_L_term(img1, img2) * self.compute_C_term(img1, img2) * self.compute_C01_term(img1, img2) * self.compute_C10_term(img1, img2)
 		return tmp**0.25
 

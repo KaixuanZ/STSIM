@@ -62,12 +62,8 @@ if __name__ == '__main__':
         X1_train, X2_train, Y_train, mask_train = next(iter(train_loader))
         X1_valid, X2_valid, Y_valid, mask_valid = next(iter(valid_loader))
 
-        from filterbank.sp3Filters import sp3Filters
         from metrics.STSIM import *
-        if config['filter']=='SCF':     # steerable complex filter
-            m = Metric(None, device)
-        elif config['filter']=='SF':    # steerable filter
-            m = Metric(sp3Filters, device)
+        m = Metric(config['filter'], device)
         # STSIM-M features
         X1_train = m.STSIM(X1_train.double().to(device))
         X2_train = m.STSIM(X2_train.double().to(device))
@@ -114,7 +110,6 @@ if __name__ == '__main__':
             if i % checkpoint_interval == 0:    # save weights
                 torch.save(model.state_dict(), os.path.join(config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
         import pdb;
-
         pdb.set_trace()
 
     elif config['model'] == 'DISTS':

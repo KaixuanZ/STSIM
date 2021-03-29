@@ -1,7 +1,5 @@
 import argparse
 import numpy as np
-
-from filterbank.sp3Filters import sp3Filters
 from utils.dataset import Dataset
 from utils.parse_config import parse_config
 
@@ -125,12 +123,8 @@ if __name__ == '__main__':
         X2 = X2.to(device).double()
         Y = Y.to(device).double()
         mask = mask.to(device).double()
-        if train_config['filter']=='SCF':
-            filter = None
-            print('using steerable complex filter')
-        elif train_config['filter']=='SF':
-            filter = sp3Filters
-            print('using steerable filter')
+
+        filter = train_config['filter']
         m_g = Metric(filter, device=device)
 
         pred = m_g.STSIM1(X1, X2)
