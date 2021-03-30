@@ -42,15 +42,9 @@ class Metric:
 
 		pyrA = self.fb.build(img1)
 		pyrB = self.fb.build(img2)
-		if self.filter == 'SCF':	# complex to real
-			for i in range(1,4):
-				for j in range(0,4):
-					pyrA[i][j] = torch.sqrt(pyrA[i][j][..., 0]**2 + pyrA[i][j][..., 1]**2)
-			for i in range(1,4):
-				for j in range(0,4):
-					pyrB[i][j] = torch.sqrt(pyrB[i][j][..., 0]**2 + pyrB[i][j][..., 1]**2)
-		pyrA = self.fb.getlist(pyrA)
-		pyrB = self.fb.getlist(pyrB)
+
+		pyrA = self.fb.getlist(pyrA, mode=2)	# pytorch complex
+		pyrB = self.fb.getlist(pyrB, mode=2)
 
 		stsim = map(self.pooling, pyrA, pyrB)
 
@@ -61,15 +55,15 @@ class Metric:
 
 		pyrA = self.fb.build(img1)
 		pyrB = self.fb.build(img2)
+		stsimg2 = list(map(self.pooling, self.fb.getlist(pyrA, mode=2), self.fb.getlist(pyrB, mode=2)))
+
 		if self.filter == 'SCF':	# complex to real
 			for i in range(1,4):
 				for j in range(0,4):
-					pyrA[i][j] = torch.sqrt(pyrA[i][j][..., 0]**2 + pyrA[i][j][..., 1]**2)
+					pyrA[i][j] = torch.view_as_complex(pyrA[i][j]).abs()
 			for i in range(1,4):
 				for j in range(0,4):
-					pyrB[i][j] = torch.sqrt(pyrB[i][j][..., 0]**2 + pyrB[i][j][..., 1]**2)
-
-		stsimg2 = list(map(self.pooling, self.fb.getlist(pyrA), self.fb.getlist(pyrB)))
+					pyrB[i][j] = torch.view_as_complex(pyrB[i][j]).abs()
 
 		Nor = len(pyrA[1])
 
@@ -230,30 +224,7 @@ class Metric:
 		return C01map
 
 	def compute_C10_term(self, img1, img2):
-		img11 = img1[:,:, :-1, :]
-		img12 = img1[:,:, 1: , :]
-		img21 = img2[:,:, :-1, :]
-		img22 = img2[:,:, 1: , :]
-
-		mu11 = torch.mean(img11, dim = [1,2,3]).reshape(-1,1,1,1)
-		mu12 = torch.mean(img12, dim = [1,2,3]).reshape(-1,1,1,1)
-		mu21 = torch.mean(img21, dim = [1,2,3]).reshape(-1,1,1,1)
-		mu22 = torch.mean(img22, dim = [1,2,3]).reshape(-1,1,1,1)
-
-		sigma11_sq = torch.mean((img11 - mu11)**2, dim = [1,2,3])
-		sigma12_sq = torch.mean((img12 - mu12)**2, dim = [1,2,3])
-		sigma21_sq = torch.mean((img21 - mu21)**2, dim = [1,2,3])
-		sigma22_sq = torch.mean((img22 - mu22)**2, dim = [1,2,3])
-
-		sigma1_cross = torch.mean((img11 - mu11)*(img12 - mu12), dim = [1,2,3])
-		sigma2_cross = torch.mean((img21 - mu21)*(img22 - mu22), dim = [1,2,3])
-
-		rho1 = (sigma1_cross + self.C)/(torch.sqrt(sigma11_sq)*torch.sqrt(sigma12_sq) + self.C)
-		rho2 = (sigma2_cross + self.C)/(torch.sqrt(sigma21_sq)*torch.sqrt(sigma22_sq) + self.C)
-
-		C10map = 1 - 0.5*torch.abs(rho1 - rho2)
-
-		return C10map
+		return self.compute_C01_term(img1.permute(0,1,3,2), img2.permute(0,1,3,2))
 
 	def compute_cross_term(self, img11, img12, img21, img22):
 		mu11 = torch.mean(img11, dim = [1,2,3]).reshape(-1,1,1,1)
