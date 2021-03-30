@@ -92,6 +92,8 @@ if __name__ == '__main__':
         model = STSIM_M(config['dim'], mode, device).double().to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr)
 
+        valid_perform = []
+        valid_res = []
         for i in range(epochs):
             pred = model(X1_train, X2_train)
             if loss_type == 'MSE':
@@ -101,16 +103,21 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            if i % 25 == 0:
-                print('training iter ' + str(i) + ' :', loss.item())
             if i % evaluation_interval == 0:    # validation
+                print('training iter ' + str(i) + ' :', loss.item())
                 pred = model(X1_valid, X2_valid)
                 val = evaluation(pred, Y_valid, mask_valid)
                 print('validation iter ' + str(i) + ' :', val)
+                valid_perform.append(sum(val.values()))
+                valid_res.append(val)
             if i % checkpoint_interval == 0:    # save weights
                 torch.save(model.state_dict(), os.path.join(config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
-        import pdb;
-        pdb.set_trace()
+        idx = valid_perform.index(max(valid_perform))
+        print('best model')
+        print('epoch:', idx*evaluation_interval)
+        print('performance:', valid_res[idx])
+        #import pdb;
+        #pdb.set_trace()
 
     elif config['model'] == 'DISTS':
         # model
