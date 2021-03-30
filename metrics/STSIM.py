@@ -196,7 +196,7 @@ class Metric:
 		Cmap = (2*sigma1*sigma2 + self.C)/(sigma1_sq + sigma2_sq + self.C)
 		return Cmap
 
-	def compute_C01_term(self, img1, img2, r=True):
+	def compute_C01_term(self, img1, img2):
 		img11 = img1[..., :-1]
 		img12 = img1[..., 1:]
 		img21 = img2[..., :-1]
@@ -222,8 +222,8 @@ class Metric:
 
 		return C01map
 
-	def compute_C10_term(self, img1, img2, r=True):
-		return self.compute_C01_term(img1.permute(0,1,3,2), img2.permute(0,1,3,2), r)
+	def compute_C10_term(self, img1, img2):
+		return self.compute_C01_term(img1.permute(0,1,3,2), img2.permute(0,1,3,2))
 
 	def compute_cross_term(self, img11, img12, img21, img22):
 		mu11 = torch.mean(img11, dim = [1,2,3]).reshape(-1,1,1,1)
