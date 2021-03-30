@@ -60,8 +60,8 @@ class SCFpyr_PyTorch(object):
         self.lutsize = 1024
         self.Xcosn = np.pi * np.array(range(-(2 * self.lutsize + 1), (self.lutsize + 2))) / self.lutsize
         self.alpha = (self.Xcosn + np.pi) % (2 * np.pi) - np.pi
-        self.complex_fact_construct = np.power(np.complex(0, -1), self.nbands - 1)
-        self.complex_fact_reconstruct = np.power(np.complex(0, 1), self.nbands - 1)
+        self.complex_fact_construct = torch.tensor(np.power(np.complex(0, -1), self.nbands - 1))
+        self.complex_fact_reconstruct = torch.tensor(np.power(np.complex(0, 1), self.nbands - 1))
 
     ################################################################################
     # Construction of Steerable Pyramid
@@ -160,12 +160,9 @@ class SCFpyr_PyTorch(object):
 
                 # Now multiply with complex number
                 # (x+yi)(u+vi) = (xu-yv) + (xv+yu)i
-                banddft = torch.unbind(banddft, -1)
-                banddft_real = self.complex_fact_construct.real * banddft[0] - self.complex_fact_construct.imag * \
-                               banddft[1]
-                banddft_imag = self.complex_fact_construct.real * banddft[1] + self.complex_fact_construct.imag * \
-                               banddft[0]
-                banddft = torch.stack((banddft_real, banddft_imag), -1)
+                banddft = torch.view_as_complex(banddft)
+                banddft = self.complex_fact_construct * banddft
+                banddft = torch.view_as_real(banddft)
 
                 band = math_utils.batch_ifftshift2d(banddft)
                 band = torch.ifft(band, signal_ndim=2)
@@ -278,12 +275,10 @@ class SCFpyr_PyTorch(object):
             banddft = math_utils.batch_fftshift2d(banddft)
 
             banddft = banddft * anglemask * himask
-            banddft = torch.unbind(banddft, -1)
-            banddft_real = self.complex_fact_reconstruct.real * banddft[0] - self.complex_fact_reconstruct.imag * \
-                           banddft[1]
-            banddft_imag = self.complex_fact_reconstruct.real * banddft[1] + self.complex_fact_reconstruct.imag * \
-                           banddft[0]
-            banddft = torch.stack((banddft_real, banddft_imag), -1)
+            banddft = torch.view_as_complex(banddft)
+
+            banddft = self.complex_fact_reconstruct * banddft
+            banddft = torch.view_as_real(banddft)
 
             orientdft = orientdft + banddft
 
