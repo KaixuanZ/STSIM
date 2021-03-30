@@ -20,7 +20,7 @@ class MyLinear(nn.Module):
 		nn.init.xavier_uniform(self.W)
 
 	def forward(self, x):
-		return torch.mm(x, torch.sigmoid(self.W)*10**3)
+		return torch.mm(x, self.W**2)
 
 class Metric:
 	# implementation of STSIM global (no sliding window), as the global version has a better performance, and also easier to implement
