@@ -25,8 +25,8 @@ if __name__ == '__main__':
 
     print(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if not os.path.isdir(config['weights_path']):
-        os.mkdir(config['weights_path'])
+    if not os.path.isdir(config['weights_folder']):
+        os.mkdir(config['weights_folder'])
 
     # read training data
     dataset_dir = config['dataset_dir']
@@ -49,12 +49,6 @@ if __name__ == '__main__':
     checkpoint_interval = int(config['checkpoint_interval'])
     lr = float(config['lr'])
     loss_type = config['loss']
-
-    # save config
-    import json
-    output_path = os.path.join(config['weights_path'], 'config.json')
-    with open(output_path, 'w') as json_file:
-        json.dump(config, json_file)
 
     # model, STSIM or DISTS
     if config['model'] == 'STSIM':
@@ -83,9 +77,9 @@ if __name__ == '__main__':
         mask_I = torch.cat(mask_I)
 
         weight_M = m.STSIM_M(X_train)   #STSIM-M
-        torch.save(weight_M, os.path.join(config['weights_path'],'STSIM-M.pt'))
+        torch.save(weight_M, os.path.join(config['weights_folder'],'STSIM-M.pt'))
         weight_I = m.STSIM_I(X_train, mask = mask_I)    #STSIM-I
-        torch.save(weight_I, os.path.join(config['weights_path'],'STSIM-I.pt'))
+        torch.save(weight_I, os.path.join(config['weights_folder'],'STSIM-I.pt'))
 
         mode = int(config['mode'])
         # learnable parameters
@@ -111,13 +105,12 @@ if __name__ == '__main__':
                 valid_perform.append(sum(val.values()))
                 valid_res.append(val)
             if i % checkpoint_interval == 0:    # save weights
-                torch.save(model.state_dict(), os.path.join(config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
+                torch.save(model.state_dict(), os.path.join(config['weights_folder'], 'epoch_' + str(i).zfill(4) + '.pt'))
         idx = valid_perform.index(max(valid_perform))
         print('best model')
         print('epoch:', idx*evaluation_interval)
         print('performance:', valid_res[idx])
-        #import pdb;
-        #pdb.set_trace()
+        config['weights_path'] = os.path.join(config['weights_folder'], 'epoch_' + str(idx*evaluation_interval).zfill(4) + '.pt')
 
     elif config['model'] == 'DISTS':
         # model
@@ -162,4 +155,10 @@ if __name__ == '__main__':
                 writer.add_scalar('Loss/valid', np.mean(running_loss), i)
                 print('validation iter ' + str(i) + ' :', np.mean(running_loss))
             if i % checkpoint_interval == 0:
-                torch.save(model.state_dict(), os.path.join(config['weights_path'], 'epoch_' + str(i).zfill(4) + '.pt'))
+                torch.save(model.state_dict(), os.path.join(config['weights_folder'], 'epoch_' + str(i).zfill(4) + '.pt'))
+    
+    # save config
+    import json
+    output_path = os.path.join(config['weights_folder'], 'config.json')
+    with open(output_path, 'w') as json_file:
+        json.dump(config, json_file)
