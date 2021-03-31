@@ -102,7 +102,7 @@ class Metric:
 		if self.filter == 'SCF':	# complex to real
 			for i in range(1,4):
 				for j in range(0,4):
-					coeffs[i][j] = torch.sqrt(coeffs[i][j][..., 0]**2 + coeffs[i][j][..., 1]**2)
+					coeffs[i][j] = torch.view_as_complex(coeffs[i][j]).abs()
 
 		f = []
 		# single subband statistics
