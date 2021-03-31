@@ -63,8 +63,8 @@ class Spyr_PyTorch(object):
         return F.conv2d(img, kernel)
 
     def getlist(self, coeff):
-        straight = [torch.abs(bands) for scale in coeff[1:-1] for bands in scale]
-        straight = [torch.abs(coeff[0])] + straight + [torch.abs(coeff[-1])]
+        straight = [bands for scale in coeff[1:-1] for bands in scale]
+        straight = [coeff[0]] + straight + [coeff[-1]]
         return straight
 
 
