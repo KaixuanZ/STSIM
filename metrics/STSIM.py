@@ -43,8 +43,8 @@ class Metric:
 		pyrA = self.fb.build(img1)
 		pyrB = self.fb.build(img2)
 
-		pyrA = self.fb.getlist(pyrA, mode=2)	# magnitude, because pytorch version 1.6.0 doesn't support complex, and version >= 1.8.0 doesn't support 3080 right now
-		pyrB = self.fb.getlist(pyrB, mode=2)
+		pyrA = self.fb.getlist(pyrA)	# magnitude, because pytorch version 1.6.0 doesn't support complex, and version >= 1.8.0 doesn't support 3080 right now
+		pyrB = self.fb.getlist(pyrB)
 
 		stsim = map(self.pooling, pyrA, pyrB)
 
@@ -55,7 +55,7 @@ class Metric:
 
 		pyrA = self.fb.build(img1)
 		pyrB = self.fb.build(img2)
-		stsimg2 = list(map(self.pooling, self.fb.getlist(pyrA, mode=2), self.fb.getlist(pyrB, mode=2))) # magnitude, because pytorch version 1.6.0 doesn't support complex, and version >= 1.8.0 doesn't support 3080 right now
+		stsimg2 = list(map(self.pooling, self.fb.getlist(pyrA), self.fb.getlist(pyrB))) # magnitude, because pytorch version 1.6.0 doesn't support complex, and version >= 1.8.0 doesn't support 3080 right now
 
 		if self.filter == 'SCF':	# complex to real
 			for i in range(1,4):
