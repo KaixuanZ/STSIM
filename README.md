@@ -2,6 +2,9 @@
 
 Implementation of Pytorch version of STSIM metrics.
 
+Right now for STSIM-1 and STSIM-2 with steerable complex filter (SCF), I am actually using the magnitude of SCF,
+because my Pytorch version 1.6.0 doesn't support complex number. Version >= 1.8.0 supports, but that doesn't support my GTX3080
+
 ## To-do List:
 
 Rewrite STSIM-I
