@@ -334,7 +334,7 @@ class SCFpyr_PyTorch(object):
         elif mode == 2:
             # magnitude
             if coeff[1][0].dim()==5:
-                straight = [torch.sqrt(bands[..., 0]**2 + bands[..., 1]**2) for scale in coeff[1:-1] for bands in scale]
+                straight = [torch.view_as_complex(bands).abs() for scale in coeff[1:-1] for bands in scale]
             else:
                 straight = [bands for scale in coeff[1:-1] for bands in scale]
             straight = [coeff[0]] + straight + [coeff[-1]]
