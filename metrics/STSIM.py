@@ -43,6 +43,12 @@ class Metric:
 		pyrA = self.fb.build(img1)
 		pyrB = self.fb.build(img2)
 
+		if self.filter == 'SF':  # magnitude of coeff
+			for i in range(1, 4):
+				for j in range(0, 4):
+					pyrA[i][j] = pyrA[i][j].abs()
+					pyrB[i][j] = pyrB[i][j].abs()
+
 		pyrA = self.fb.getlist(pyrA)	# magnitude, because pytorch version 1.6.0 doesn't support complex, and version >= 1.8.0 doesn't support 3080 right now
 		pyrB = self.fb.getlist(pyrB)
 
@@ -55,6 +61,17 @@ class Metric:
 
 		pyrA = self.fb.build(img1)
 		pyrB = self.fb.build(img2)
+		if self.filter == 'SCF':	# complex to real and magnitude of coeff
+			for i in range(1,4):
+				for j in range(0,4):
+					pyrA[i][j] = torch.view_as_complex(pyrA[i][j]).abs()
+					pyrB[i][j] = torch.view_as_complex(pyrB[i][j]).abs()
+		elif self.filter == 'SF':	# magnitude of coeff
+			for i in range(1,4):
+				for j in range(0,4):
+					pyrA[i][j] = pyrA[i][j].abs()
+					pyrB[i][j] = pyrB[i][j].abs()
+
 		stsimg2 = list(map(self.pooling, self.fb.getlist(pyrA), self.fb.getlist(pyrB))) # magnitude, because pytorch version 1.6.0 doesn't support complex, and version >= 1.8.0 doesn't support 3080 right now
 
 		if self.filter == 'SCF':	# complex to real
@@ -99,10 +116,14 @@ class Metric:
 		:return: [N, feature dim] STSIM-features
 		'''
 		coeffs = self.fb.build(imgs)
-		if self.filter == 'SCF':	# complex to real
+		if self.filter == 'SCF':	# complex to real and magnitude of coeff
 			for i in range(1,4):
 				for j in range(0,4):
 					coeffs[i][j] = torch.view_as_complex(coeffs[i][j]).abs()
+		elif self.filter == 'SF':	# magnitude of coeff
+			for i in range(1,4):
+				for j in range(0,4):
+					coeffs[i][j] = coeffs[i][j].abs()
 
 		f = []
 		# single subband statistics
