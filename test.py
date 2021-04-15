@@ -154,15 +154,22 @@ if __name__ == '__main__':
 
         #import pdb;pdb.set_trace()
     elif config['model'] == 'DISTS':
+        test_loader = torch.utils.data.DataLoader(testset, batch_size=60)
         from metrics.DISTS_pt import *
-        X1 = F.interpolate(X1.to(device), size=256).float()
-        X2 = F.interpolate(X2.to(device), size=256).float()
-        Y = Y.to(device)
-        mask = mask.to(device)
+
         model = DISTS(weights_path=config['weights_path']).to(device)
-        pred = []
-        for i in range(2):  # 2*45 = 90, lack of GPU memory
-            pred.append(model(X1[i * 45:(i + 1) * 45], X2[i * 45:(i + 1) * 45]))
+        pred, Y, mask = [], [], []
+        for X1_test, X2_test, Y_test, mask_test in test_loader:
+            X1_test = F.interpolate(X1_test, size=256).float().to(device)
+            X2_test = F.interpolate(X2_test, size=256).float().to(device)
+            Y_test = Y_test.to(device)
+            mask_test = mask_test.to(device)
+            pred.append(model(X1_test, X2_test))
+            Y.append(Y_test)
+            mask.append(mask_test)
+            #import pdb;pdb.set_trace()
         pred = torch.cat(pred, dim=0).detach()
+        Y = torch.cat(Y, dim=0).detach()
+        mask = torch.cat(mask, dim=0).detach()
 
         print("DISTS test:", evaluation(pred, Y, mask))  # {'PLCC': 0.9574348579861184, 'SRCC': 0.9213941434033467, 'KRCC': 0.8539799877032255}
