@@ -100,8 +100,8 @@ if __name__ == '__main__':
     # read data
     dataset_dir = config['dataset_dir']
     label_file = config['label_file']
-    dist_img_folder = config['dist_img_folder']
-    testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist_folder=dist_img_folder)
+    dist = config['dist']
+    testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
     test_loader = torch.utils.data.DataLoader(testset, batch_size=opt.batch_size)
 
     # read train config
@@ -117,6 +117,7 @@ if __name__ == '__main__':
         tmp = torch.tensor([torch.max(X1[i]) for i in range(X1.shape[0])])
         pred = 10 * torch.log10(tmp * tmp / torch.mean((X1 - X2) ** 2, dim=[1, 2, 3]))
         print("PSNR test:", evaluation(pred, Y, mask))
+
     elif config['model'] == 'STSIM':
         from metrics.STSIM import *
         X1 = X1.to(device).double()
@@ -151,6 +152,7 @@ if __name__ == '__main__':
         pred = model(X1, X2)
         print("STSIM-M (trained) test:", evaluation(pred, Y, mask)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
 
+        #import pdb;pdb.set_trace()
     elif config['model'] == 'DISTS':
         from metrics.DISTS_pt import *
         X1 = F.interpolate(X1.to(device), size=256).float()
