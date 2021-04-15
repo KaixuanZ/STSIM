@@ -75,16 +75,22 @@ if __name__ == '__main__':
         mask_valid = mask_valid.to(device)
 
         # collect all data and estimate STSIM-M and STSIM-I
-        X_train = [X1_train[mask_train==i][0:1] for i in set(mask_train.detach().cpu().numpy())]
-        mask_I = [mask_train[mask_train==i][0:1]  for i in set(mask_train.detach().cpu().numpy())]
+        X1 = torch.cat((X1_train, X1_valid))
+        mask = torch.cat((mask_train, mask_valid))
+        X_train = [X1[mask==i][0:1] for i in set(mask.detach().cpu().numpy())]
+        mask_I = [mask[mask==i][0:1]  for i in set(mask.detach().cpu().numpy())]
         X_train.append(X2_train)
+        X_train.append(X2_valid)
         mask_I.append(mask_train)
+        mask_I.append(mask_valid)
         X_train = torch.cat(X_train)
         mask_I = torch.cat(mask_I)
 
-        weight_M = m.STSIM_M(X_train)   #STSIM-M
+        # STSIM-M
+        weight_M = m.STSIM_M(X_train)
         torch.save(weight_M, os.path.join(config['weights_folder'],'STSIM-M.pt'))
-        weight_I = m.STSIM_I(X_train, mask = mask_I)    #STSIM-I
+        # STSIM-I
+        weight_I = m.STSIM_I(X_train, mask = mask_I)
         torch.save(weight_I, os.path.join(config['weights_folder'],'STSIM-I.pt'))
 
         mode = int(config['mode'])
@@ -127,8 +133,7 @@ if __name__ == '__main__':
         test = evaluation(pred, Y_test, mask_test)
         print('performance on test set:', test)
 
-        import pdb;
-        pdb.set_trace()
+        #import pdb;pdb.set_trace()
 
     elif config['model'] == 'DISTS':
         # model
