@@ -92,8 +92,8 @@ if __name__ == '__main__':
     # read data
     dataset_dir = config['dataset_dir']
     label_file = config['label_file']
-    dist_img_folder = config['dist_img_folder']
-    testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist_folder=dist_img_folder)
+    dist = config['dist']
+    testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
     test_loader = torch.utils.data.DataLoader(testset, batch_size=opt.batch_size)
 
     # read train config
