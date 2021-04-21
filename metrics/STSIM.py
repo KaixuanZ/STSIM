@@ -100,14 +100,18 @@ class Metric:
 		:return: [N, feature dim] STSIM-features
 		'''
 		coeffs = self.fb.build(imgs)
-		if self.filter == 'SCF':	# complex to real and magnitude of coeff
+		if self.filter == 'SCF':	# magnitude of coeff
 			for i in range(1,4):
 				for j in range(0,4):
 					coeffs[i][j] = torch.view_as_complex(coeffs[i][j]).abs()
+			for i in [0, -1]:
+				coeffs[i] = coeffs[i].abs()
 		elif self.filter == 'SF':	# magnitude of coeff
 			for i in range(1,4):
 				for j in range(0,4):
 					coeffs[i][j] = coeffs[i][j].abs()
+			for i in [0, -1]:
+				coeffs[i] = coeffs[i].abs()
 
 		f = []
 		# single subband statistics
