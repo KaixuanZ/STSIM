@@ -17,12 +17,12 @@ class Dataset(torch.utils.data.Dataset):
             import json
             with open(os.path.join(data_dir, dist)) as f:
                 self.dist_img_paths = json.load(f)
-            self.dist_img_paths = [os.path.join(data_dir, img) for img in self.dist_img_paths]
-            self.dist_img_paths = sorted(clean_names(self.dist_img_paths))
+            self.dist_img_paths = [os.path.join(data_dir, img) for img in clean_names(self.dist_img_paths)]
+            self.dist_img_paths = sorted(self.dist_img_paths)
         else:
             self.dist_dir = os.path.join(data_dir, dist)
-            self.dist_img_paths = [os.path.join(self.dist_dir, img) for img in os.listdir(self.dist_dir)]
-            self.dist_img_paths = sorted(clean_names(self.dist_img_paths))
+            self.dist_img_paths = [os.path.join(self.dist_dir, img) for img in clean_names(os.listdir(self.dist_dir))]
+            self.dist_img_paths = sorted(self.dist_img_paths)
 
     def __len__(self):
         return len(self.dist_img_paths)
