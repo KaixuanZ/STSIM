@@ -2,11 +2,18 @@
 
 Implementation of Pytorch version of STSIM metrics.
 
+Right now for STSIM-1 and STSIM-2 with steerable complex filter (SCF), I am actually using the magnitude of SCF,
+because my Pytorch version 1.6.0 doesn't support complex number. Version >= 1.8.0 supports, but that doesn't support my GTX3080.
+
+When apply steerble filter on STSIM-1 and STSIM-2 it works, because steerble filter gives real coefficients and Pytorch can handle that.
+
 ## To-do List:
 
-Waiting for new dataset, train with new data once we get it
+Rewrite STSIM-I
 
-Reproduce a few results with the latest pipeline, save model's parameters
+Validate the choice of rank by SVD
+
+Train and test with Corbis dataset, train with Corbis and test on Jana's dataset
 
 ## Reference Github Repo:
 [steerable pyramid filters](https://github.com/LabForComputationalVision/pyPyrTools)
