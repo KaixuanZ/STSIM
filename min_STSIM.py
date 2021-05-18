@@ -15,7 +15,7 @@ ref = npImg1
 
 img1 = torch.from_numpy(npImg1).double().unsqueeze(0).unsqueeze(0)
 N,C,H,W = img1.shape
-img2 = torch.rand([N,C,H*4,W*4])
+img2 = torch.rand([N,C,H,W])
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 img1 = img1.double().to(device)
@@ -55,7 +55,7 @@ for i in tqdm(range(31)):
     res = res.numpy()
 
     res = steerable_hist_match(ref, res)
-    cv2.imwrite('data/res/res_' + str(i).zfill(3) + '.png', res*255)
+    cv2.imwrite('data/res_0517/res_' + str(i).zfill(3) + '.png', res*255)
 
     if i>0:
         delta = np.mean(np.abs(res-res_pre))*255
