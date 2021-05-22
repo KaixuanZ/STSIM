@@ -94,12 +94,87 @@ class Metric:
 
 		return torch.mean(torch.stack(stsimg2), dim=0).T # [BatchSize, FeatureSize]
 
-	def STSIM(self, imgs):
+	def _STSIM_with_mask(self, img, mask):
 		'''
-		:param imgs: [N,C=1,H,W]
+		:param img: [N,C=1,H,W]
+		:return: [N, feature dim] STSIM-features
+		return STSIM features given a mask
+		'''
+		coeffs = self.fb.build(img)
+		if self.filter == 'SCF':  # magnitude of coeff
+			for i in range(1, 4):
+				for j in range(0, 4):
+					coeffs[i][j] = torch.view_as_complex(coeffs[i][j]).abs()
+			for i in [0, -1]:
+				coeffs[i] = coeffs[i].abs()
+		# elif self.filter == 'SF':	# magnitude of coeff
+		#	for i in range(1,4):
+		#		for j in range(0,4):
+		#			coeffs[i][j] = coeffs[i][j].abs()
+		#	for i in [0, -1]:
+		#		coeffs[i] = coeffs[i].abs()
+
+		f = []
+		# single subband statistics
+		for c in self.fb.getlist(coeffs):
+			# mask the subband
+			k = mask.shape[-1]//c.shape[-1]
+			mask_c = mask[:,:,::k,::k]
+			# stats with mask
+			mean = torch.sum(c*mask_c, dim=[1, 2, 3])/mask_c.sum()
+			f.append(mean)
+			c1 = c - mean.reshape([-1, 1, 1, 1])
+			var = torch.sum((c1*mask_c)**2, dim=[1, 2, 3])/(mask_c.sum()-1+self.C)
+			f.append(var)
+			f.append(torch.sum(c1[:, :, :-1, :] * c1[:, :, 1:, :] * mask_c[:,:,:-1,:], dim=[1, 2, 3]) / ((mask_c.sum()-1) * var + self.C))
+			f.append(torch.sum(c1[:, :, :, :-1] * c1[:, :, :, 1:] * mask_c[:,:,:,:-1], dim=[1, 2, 3]) / ((mask_c.sum()-1) * var + self.C))
+
+		# correlation statistics
+		# across orientations
+		for orients in coeffs[1:-1]:
+			for (c1, c2) in list(itertools.combinations(orients, 2)):
+				k = mask.shape[-1] // c1.shape[-1]
+				mask_c = mask[:, :, ::k, ::k]
+
+				mean_c1 = torch.sum(c1*mask_c, dim=[1, 2, 3]) / mask_c.sum()
+				mean_c2 = torch.sum(c2*mask_c, dim=[1, 2, 3]) / mask_c.sum()
+				c1 = c1 - mean_c1.reshape([-1,1,1,1])
+				c2 = c2 - mean_c2.reshape([-1,1,1,1])
+				var_c1 = torch.sum((c1 * mask_c) ** 2, dim=[1, 2, 3]) / (mask_c.sum() - 1 + self.C)
+				var_c2 = torch.sum((c2 * mask_c) ** 2, dim=[1, 2, 3]) / (mask_c.sum() - 1 + self.C)
+				denom = torch.sqrt(var_c1 * var_c2) + self.C
+				nom = torch.sum(c1*c2*mask_c, dim=[1, 2, 3])/mask_c.sum()
+				f.append(nom / denom)
+
+		for orient in range(len(coeffs[1])):
+			for height in range(len(coeffs) - 3):
+				c1 = coeffs[height + 1][orient]
+				c2 = coeffs[height + 2][orient]
+				c1 = F.interpolate(c1, size=c2.shape[2:])
+				k = mask.shape[-1] // c2.shape[-1]
+				mask_c = mask[:, :, ::k, ::k]
+
+				mean_c1 = torch.sum(c1 * mask_c, dim=[1, 2, 3]) / mask_c.sum()
+				c1 = c1 - mean_c1.reshape([-1,1,1,1])
+				mean_c2 = torch.sum(c2 * mask_c, dim=[1, 2, 3]) / mask_c.sum()
+				c2 = c2 - mean_c2.reshape([-1,1,1,1])
+
+				var_c1 = torch.sum((c1 * mask_c) ** 2, dim=[1, 2, 3]) / (mask_c.sum() - 1 + self.C)
+				var_c2 = torch.sum((c2 * mask_c) ** 2, dim=[1, 2, 3]) / (mask_c.sum() - 1 + self.C)
+				denom = torch.sqrt(var_c1 * var_c2) + self.C
+				nom = torch.sum(c1 * c2 * mask_c, dim=[1, 2, 3]) / mask_c.sum()
+				f.append(nom / denom)
+
+		return torch.stack(f).T  # [BatchSize, FeatureSize]
+
+	def STSIM(self, img, mask=None):
+		'''
+		:param img: [N,C=1,H,W]
 		:return: [N, feature dim] STSIM-features
 		'''
-		coeffs = self.fb.build(imgs)
+		if mask is not None:
+			return self._STSIM_with_mask(img, mask)
+		coeffs = self.fb.build(img)
 		if self.filter == 'SCF':	# magnitude of coeff
 			for i in range(1,4):
 				for j in range(0,4):
@@ -129,20 +204,19 @@ class Metric:
 		# across orientations
 		for orients in coeffs[1:-1]:
 			for (c1, c2) in list(itertools.combinations(orients, 2)):
-				c1 = torch.abs(c1)
 				c1 = c1 - torch.mean(c1, dim = [1,2,3]).reshape([-1,1,1,1])
-				c2 = torch.abs(c2)
 				c2 = c2 - torch.mean(c2, dim = [1,2,3]).reshape([-1,1,1,1])
 				denom = torch.sqrt(torch.var(c1, dim = [1,2,3]) * torch.var(c2, dim = [1,2,3]))
 				f.append(torch.mean(c1*c2, dim = [1,2,3])/(denom + self.C))
 
 		for orient in range(len(coeffs[1])):
 			for height in range(len(coeffs) - 3):
-				c1 = torch.abs(coeffs[height + 1][orient])
-				c1 = c1 - torch.mean(c1, dim=[1, 2, 3]).reshape([-1,1,1,1])
-				c2 = torch.abs(coeffs[height + 2][orient])
-				c2 = c2 - torch.mean(c2, dim=[1, 2, 3]).reshape([-1,1,1,1])
+				c1 = coeffs[height + 1][orient]
 				c1 = F.interpolate(c1, size=c2.shape[2:])
+				c2 = coeffs[height + 2][orient]
+
+				c1 = c1 - torch.mean(c1, dim=[1, 2, 3]).reshape([-1, 1, 1, 1])
+				c2 = c2 - torch.mean(c2, dim=[1, 2, 3]).reshape([-1,1,1,1])
 				denom = torch.sqrt(torch.var(c1, dim = [1,2,3]) * torch.var(c2, dim = [1,2,3]))
 				f.append(torch.mean(c1*c2, dim = [1,2,3])/(denom + self.C))
 
@@ -305,5 +379,28 @@ class STSIM_M(torch.nn.Module):
 			return torch.sqrt(pred)
 
 if __name__ == '__main__':
+	import cv2
+	import numpy as np
+	img_o = cv2.imread('../data/original.png', 0).astype(float)
+	img_den = cv2.imread('../data/denoised.png', 0).astype(float)
+
+	fg = img_o - img_den
+
+	# mask of flat region
+	edges = cv2.Canny(img_den.astype(np.uint8), 50, 100)
+	kernel = np.ones((5, 5), np.uint8)
+	mask = cv2.dilate(edges, kernel, iterations=1)
+	mask = 1 - mask/255
+
+	mask = torch.tensor(mask).double()
+	fg = torch.tensor(fg).double()
+	fg = fg.unsqueeze(0).unsqueeze(0)
+	mask = mask.unsqueeze(0).unsqueeze(0)
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+	m = Metric('SF', device)
+
+	fg = fg.double().to(device)
+
+	feature_img1 = m.STSIM(fg.repeat(2,1,1,1), mask)
 
 	import pdb;pdb.set_trace()
