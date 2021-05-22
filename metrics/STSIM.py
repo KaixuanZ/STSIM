@@ -212,14 +212,13 @@ class Metric:
 		for orient in range(len(coeffs[1])):
 			for height in range(len(coeffs) - 3):
 				c1 = coeffs[height + 1][orient]
-				c1 = F.interpolate(c1, size=c2.shape[2:])
 				c2 = coeffs[height + 2][orient]
+				c1 = F.interpolate(c1, size=c2.shape[2:])
 
 				c1 = c1 - torch.mean(c1, dim=[1, 2, 3]).reshape([-1, 1, 1, 1])
 				c2 = c2 - torch.mean(c2, dim=[1, 2, 3]).reshape([-1,1,1,1])
 				denom = torch.sqrt(torch.var(c1, dim = [1,2,3]) * torch.var(c2, dim = [1,2,3]))
 				f.append(torch.mean(c1*c2, dim = [1,2,3])/(denom + self.C))
-
 		return torch.stack(f).T # [BatchSize, FeatureSize]
 
 	def STSIM_M(self, X1, X2=None, weight=None):
