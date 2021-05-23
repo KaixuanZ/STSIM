@@ -4,63 +4,70 @@ from torch.autograd import Variable
 from torch import optim
 import cv2
 import numpy as np
+import os
 from tqdm import tqdm
 from hist_matching import steerable_hist_match
 from skimage import exposure
 from skimage.exposure import match_histograms
 
-#npImg1 = cv2.imread("data/0001.tiff",0)/255
-npImg1 = cv2.imread("data/fg.png",0)/255
-ref = npImg1
+def min_STSIM(features, params, size=(1,1,128,128), output_dir = None):
+    img = torch.rand(size)
 
-img1 = torch.from_numpy(npImg1).double().unsqueeze(0).unsqueeze(0)
-N,C,H,W = img1.shape
-img2 = torch.rand([N,C,H,W])
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    m = Metric('SF', device)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-img1 = img1.double().to(device)
-img2 = img2.double().to(device)
+    img = img.double().to(device)
 
+    features = Variable( features,  requires_grad=False)
+    img = Variable( img, requires_grad = True)
 
-img1 = Variable( img1,  requires_grad=False)
-img2 = Variable( img2, requires_grad = True)
+    for i in tqdm(range(21)):
+        #if i%10==0:
+        if i%5==0:
+            # hist match
+            tmp = img.detach().cpu().squeeze(0).squeeze(0)
+            tmp = tmp.numpy()
+            tmp = steerable_hist_match(params, tmp)
+            img = Variable(torch.from_numpy(tmp).double().unsqueeze(0).unsqueeze(0), requires_grad = True)
 
-m = Metric('SF', device)
-#stsim_loss = torch.sum((m.STSIM(img1) - m.STSIM(img2)) ** 2)
+        optimizer = optim.Adam( [img], lr=0.5/(max(1,i//5)) )
 
-# Module: pytorch_ssim.SSIM(window_size = 11, size_average = True)
+        optimizer.zero_grad()
+        stsim_loss = torch.sum((features - m.STSIM(img))**2) + torch.sum(img**2)
+        stsim_loss.backward()
+        optimizer.step()
+        #print(stsim_loss)
 
-#optimizer = optim.Adam([img2], lr=0.01)
+        res = img.detach().cpu().squeeze(0).squeeze(0)
+        res = res.numpy()
+        #noise = np.random.randn(*res.shape) * res.std() * 0.2
+        #res = res + noise
+        res = steerable_hist_match(params, res)
 
-i = 0
-for i in tqdm(range(31)):
-    if i%10==0:
-        # hist match
-        tmp = img2.detach().cpu().squeeze(0).squeeze(0)
-        tmp = tmp.numpy()
-        tmp = steerable_hist_match(ref, tmp)
-        #tmp = match_histograms(tmp, ref, multichannel=False)
-        img2 = Variable(torch.from_numpy(tmp).double().unsqueeze(0).unsqueeze(0), requires_grad = True)
-    stsim_loss = torch.sum((m.STSIM(img1) - m.STSIM(img2)) ** 2)
-    #optimizer = optim.Adam( [img2], lr=max( 0.01/(max(1,i/10)) ,0.005) )
-    optimizer = optim.Adam( [img2], lr=0.01 )
+        if output_dir is not None:
+            if not os.path.isdir(output_dir):
+                os.mkdir(output_dir)
+            cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+14)*255/44)
 
-    optimizer.zero_grad()
-    stsim_loss = torch.sum((m.STSIM(img1) - m.STSIM(img2))**2)
-    stsim_loss.backward()
-    optimizer.step()
-    print(stsim_loss)
+        '''
+        if i>0:
+            delta = np.mean(np.abs(res-res_pre))*255
+            print(i,delta)
+        res_pre = res
+        '''
+    return res
 
-    res = img2.detach().cpu().squeeze(0).squeeze(0)
-    res = res.numpy()
+if __name__ == '__main__':
+    #ref = cv2.imread("data/0001.tiff",0)/255
+    #ref = cv2.imread("data/fg.png",0)/255
+    #min_STSIM(ref, 'data/res')
 
-    res = steerable_hist_match(ref, res)
-    cv2.imwrite('data/res_0517/res_' + str(i).zfill(3) + '.png', res*255)
+    img_o = cv2.imread('data/original.png',0).astype(float)
+    img_den = cv2.imread('data/denoised.png',0).astype(float)
 
-    if i>0:
-        delta = np.mean(np.abs(res-res_pre))*255
-        print(i,delta)
-    res_pre = res
+    size = 128
+    h,w = 400,700
+    fg = img_o - img_den
 
-import pdb;
-pdb.set_trace()
+    fg_syn = min_STSIM(fg[h:h+size,w:w+size])
+    import pdb;pdb.set_trace()

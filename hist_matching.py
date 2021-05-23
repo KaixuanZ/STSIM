@@ -9,16 +9,14 @@ import scipy.stats as stats
 from scipy.stats import gennorm
 import matplotlib.pyplot as plt
 
-def steerable_hist_match(ref, image):
+def steerable_hist_match(params, image):
     # this step is redundent if they are already histogram matched
-    image = match_histograms(image, ref, multichannel=False)
+    image = my_match_histograms(image, gennorm, params['original'])
 
-    pyr1 = pt.pyramids.SteerablePyramidSpace(ref, height=3, order=3)    # 3+2 scales, 3 orientations
-    pyr2 = pt.pyramids.SteerablePyramidSpace(image, height=3, order=3)    # 3+2 scales, 3 orientations
-    for key in pyr1.pyr_coeffs:
-        params = gennorm.fit(pyr1.pyr_coeffs[key].ravel())
-        pyr2.pyr_coeffs[key] = my_match_histograms(pyr2.pyr_coeffs[key], gennorm, params)
-        #pyr2.pyr_coeffs[key] = match_histograms(pyr2.pyr_coeffs[key], pyr1.pyr_coeffs[key], multichannel=False)
+    pyr = pt.pyramids.SteerablePyramidSpace(image, height=3, order=3)    # 3+2 scales, 3 orientations
+    for key in pyr.pyr_coeffs:
+        pyr.pyr_coeffs[key] = my_match_histograms(pyr.pyr_coeffs[key], gennorm, params[key])
+
         '''
         x = np.linspace(pyr1.pyr_coeffs[key].min(), pyr1.pyr_coeffs[key].max(), 100)
         # mu, sigma = pyr1.pyr_coeffs[key].mean(), (pyr1.pyr_coeffs[key].var())**0.5
@@ -38,10 +36,9 @@ def steerable_hist_match(ref, image):
         plt.close()
         '''
     #import pdb;pdb.set_trace()
-    image = pyr2.recon_pyr()
-    params = gennorm.fit(ref.ravel())
-    image = my_match_histograms(image, gennorm, params)
-    #image = match_histograms(image, ref, multichannel=False)
+    image = pyr.recon_pyr()
+    image = my_match_histograms(image, gennorm, params['original'])
+
     '''
     x = np.linspace(0, 1, 100)
 
@@ -59,9 +56,12 @@ def steerable_hist_match(ref, image):
 
 if __name__ == '__main__':
     img1 = cv2.imread("data/fg.png",0)
-    img2 = np.random.rand(img1.shape[0],img1.shape[1])
+    #img2 = np.random.rand(img1.shape[0],img1.shape[1])
+    img2 = cv2.imread("data/fg_128_Netflix.png",0)
 
     img2 = match_histograms(img2, img1, multichannel=False)
+    import pdb;
+    pdb.set_trace()
     for i in tqdm(range(10)):
         img2 = steerable_hist_match(img1, img2)
         cv2.imwrite('data/iter'+str(i).zfill(2)+'.png', img2)
