@@ -1,7 +1,6 @@
 import argparse
 import numpy as np
 from utils.dataset import Dataset
-
 from utils.parse_config import parse_config
 
 import torch
