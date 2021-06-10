@@ -1,12 +1,15 @@
 import argparse
 import numpy as np
 from utils.dataset import Dataset
+
 from utils.parse_config import parse_config
 
 import torch
 import torch.nn.functional as F
 import scipy.stats
 from tqdm import tqdm
+
+from joblib import Parallel, delayed
 
 def SpearmanCoeff(X, Y, mask):
     '''
@@ -116,10 +119,23 @@ if __name__ == '__main__':
 
     stsim1 = []
     stsim2 = []
+
+    def STSIM1(X1,X2):
+        return m.STSIM(X1[0], X2[0])
+
+    def STSIM2(X1,X2):
+        return m.STSIM2(X1[0],X2[0])
+
+    X1 = np.array_split(X1,X1.shape[0])
+    X2 = np.array_split(X2,X2.shape[0])
+
+    stsim1 = Parallel(n_jobs=-1)(delayed(STSIM1)(X1[i],X2[i]) for i in tqdm(range(len(X1))))
+    stsim2 = Parallel(n_jobs=-1)(delayed(STSIM2)(X1[i],X2[i]) for i in tqdm(range(len(X1))))
+    '''
     for i in tqdm(range(X1.shape[0])):
         stsim1.append(m.STSIM(X1[i], X2[i]))
         stsim2.append(m.STSIM2(X1[i], X2[i]))
-
+    '''
     print("STSIM-1 test:", evaluation(np.array(stsim1), Y, mask)) # {'PLCC': 0.877, 'SRCC': 0.884, 'KRCC': 0.797}
 
     print("STSIM-2 test:", evaluation(np.array(stsim2), Y, mask))  #  {'PLCC': 0.893, 'SRCC': 0.907, 'KRCC': 0.837}
