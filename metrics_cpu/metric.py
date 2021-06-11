@@ -1,6 +1,10 @@
 from __future__ import division
+
+import sys
+sys.path.append('..')
 import numpy as np
 from metrics_cpu.filterbank import Steerable, SteerableNoSub
+from filterbank.VGG import VGG
 import cv2
 from scipy import signal
 import itertools
@@ -61,6 +65,27 @@ class Metric:
 		return signal.correlate2d(a, b, mode = 'valid')
 		# return cv2.filter2D(a, -1, b, anchor = (0,0))\
 		# 	[:(a.shape[0]-b.shape[0]+1), :(a.shape[1]-b.shape[1]+1)]
+
+	def STSIM_VGG(self, im1, im2):
+		assert im1.shape == im2.shape
+
+		import torch
+		device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+		im1_pt = torch.tensor(im1).to(device)
+		im1_pt = im1_pt.unsqueeze(0).unsqueeze(0)
+		im2_pt = torch.tensor(im2).to(device)
+		im2_pt = im2_pt.unsqueeze(0).unsqueeze(0)
+
+		model = VGG(numpy=True).to(device)
+		feat1 = model.build(im1_pt)
+		feat2 = model.build(im2_pt)
+
+		pyrA = model.getlist(feat1)
+		pyrB = model.getlist(feat2)
+		stsim = map(self.pooling, pyrA, pyrB)
+
+		return np.mean(list(stsim))
 
 	def STSIM(self, im1, im2):
 		assert im1.shape == im2.shape
@@ -169,8 +194,10 @@ class Metric:
 		mu2 = np.abs(self.conv(im2, window))
 
 		sigma1_sq = self.conv(np.abs(im1*im1), window) - mu1 * mu1
+		sigma1_sq[sigma1_sq<0]=0
 		sigma1 = np.sqrt(sigma1_sq)
 		sigma2_sq = self.conv(np.abs(im2*im2), window) - mu2 * mu2
+		sigma2_sq[sigma2_sq < 0] = 0
 		sigma2 = np.sqrt(sigma2_sq)
 
 		Cmap = (2*sigma1*sigma2 + C)/(sigma1_sq + sigma2_sq + C)
@@ -198,6 +225,13 @@ class Metric:
 
 		sigma1_cross = self.conv(im11*np.conj(im12), window2) - mu11*np.conj(mu12)
 		sigma2_cross = self.conv(im21*np.conj(im22), window2) - mu21*np.conj(mu22)
+
+		sigma11_sq[sigma11_sq < 0] = 0
+		sigma12_sq[sigma12_sq < 0] = 0
+		sigma21_sq[sigma21_sq < 0] = 0
+		sigma22_sq[sigma22_sq < 0] = 0
+		sigma1_cross[sigma1_cross < 0] = 0
+		sigma2_cross[sigma2_cross < 0] = 0
 
 		rho1 = (sigma1_cross + C)/(np.sqrt(sigma11_sq)*np.sqrt(sigma12_sq) + C)
 		rho2 = (sigma2_cross + C)/(np.sqrt(sigma21_sq)*np.sqrt(sigma22_sq) + C)
@@ -227,6 +261,13 @@ class Metric:
 
 		sigma1_cross = self.conv(im11*np.conj(im12), window2) - mu11*np.conj(mu12)
 		sigma2_cross = self.conv(im21*np.conj(im22), window2) - mu21*np.conj(mu22)
+
+		sigma11_sq[sigma11_sq < 0] = 0
+		sigma12_sq[sigma12_sq < 0] = 0
+		sigma21_sq[sigma21_sq < 0] = 0
+		sigma22_sq[sigma22_sq < 0] = 0
+		sigma1_cross[sigma1_cross < 0] = 0
+		sigma2_cross[sigma2_cross < 0] = 0
 
 		rho1 = (sigma1_cross + C)/(np.sqrt(sigma11_sq)*np.sqrt(sigma12_sq) + C)
 		rho2 = (sigma2_cross + C)/(np.sqrt(sigma21_sq)*np.sqrt(sigma22_sq) + C)
