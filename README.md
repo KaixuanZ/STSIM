@@ -39,10 +39,6 @@ TBD
 
 on concatenated dataset
 
-STSIM-1 test: {'PLCC': 0.856, 'SRCC': 0.849, 'KRCC': 0.758}
+STSIM-1 test: {'PLCC': 0.922, 'SRCC': 0.911, 'KRCC': 0.833}
 
-STSIM-2 test: {'PLCC': 0.864, 'SRCC': 0.86, 'KRCC': 0.773}
-
-STSIM-1-VGG test (w/o input): {'PLCC': 0.788, 'SRCC': 0.778, 'KRCC': 0.672}
-
-STSIM-1-VGG test (w/ input):  {'PLCC': 0.788, 'SRCC': 0.779, 'KRCC': 0.673}
+STSIM-2 test: {'PLCC': 0.925, 'SRCC': 0.916, 'KRCC': 0.837}
