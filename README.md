@@ -34,3 +34,11 @@ Train and test with Corbis dataset, train with Corbis and test on Jana's dataset
 ## Download Dataset:
 
 TBD
+
+## Results:
+
+on concatenated dataset
+
+STSIM-1 test: {'PLCC': 0.922, 'SRCC': 0.911, 'KRCC': 0.833}
+
+STSIM-2 test: {'PLCC': 0.925, 'SRCC': 0.916, 'KRCC': 0.837}
