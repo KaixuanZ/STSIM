@@ -17,12 +17,13 @@ def expand(fg):
     res = np.zeros([H * 10, W * 16])
 
     k = 4
+    edge = 4
 
     for i in range(10*k):
         for j in range(16*k):
-            ii, jj = int(np.random.randint(H-4-4-H//k)), int(np.random.randint(W-4-4-W//k))
+            ii, jj = int(np.random.randint(H-2*edge-H//k)), int(np.random.randint(W-2*edge-W//k))
 
-            src = fg[4 + ii:4 + H//k +ii, 4 + jj:4 + W//k +jj]
+            src = fg[edge + ii:edge + H//k +ii, edge + jj:edge + W//k +jj]
 
             src = cv2.flip(src, np.random.randint(2))
             tmp = np.random.randint(4)
@@ -41,14 +42,37 @@ def expand(fg):
     return res
 
 if __name__ == '__main__':
+    #img_o = cv2.imread('data/DareDevil/original/frame_00300.png').astype(float)
+    #img_den = cv2.imread('data/DareDevil/denoised/frame_00300.png').astype(float)
+    # gray scale
+    img_o = cv2.imread('data/DareDevil/original/frame_00300.png',0).astype(float)
+    img_den = cv2.imread('data/DareDevil/denoised/frame_00300.png',0).astype(float)
 
-    img_o = cv2.imread('data/original.png',0).astype(float)
-    img_den = cv2.imread('data/denoised.png',0).astype(float)
+    #img_o = cv2.imread('data/original_DareDevil.png',0).astype(float)
+    #img_den = cv2.imread('data/denoised_DareDevil.png',0).astype(float)
+
+    # tax
+    #img_o = img_o[10:-10]
+    #img_den = img_den[10:-10]
+
+    # law
+    #img_o = img_o[102:-102]
+    #img_den = img_den[102:-102]
+
+    # tax
+    #h,w = 920 , 1750
+
+    # DareDevil
+    #h,w = 450,700
+    h,w = 350,1150
+
+    # law
+    #h,w = 0,600
 
     size = 128
-    h,w = 450,700
     fg = img_o - img_den
 
+    #import pdb;pdb.set_trace()
     # mask of flat region
     edges = cv2.Canny(img_den.astype(np.uint8), 50, 100)
     kernel = np.ones((5,5), np.uint8)
@@ -95,22 +119,29 @@ if __name__ == '__main__':
     t1 = time.time()
     # synthesize a patch of film grain (size * size)
     print('synthesizing film grain noise')
-    fg_syn = min_STSIM(feature_fg, params, output_dir='data/res', size=(1,1,128,128))
+    fg_syn = min_STSIM(feature_fg, params, output_dir='data/res', size=(1,1,256,256))
+    res = fg_syn
 
     # a larger image by concatenating 32 by 32 patch
-    res = expand(fg_syn)
+    #res = expand(fg_syn)
     #res = expand(fg[450:450+128,700:700+128])
-    res = res[:1080, :1920]
+    #res = res[:img_o.shape[0], :img_o.shape[1]]
 
-    cv2.imwrite('tmp1.png', (fg - fg.min())/(fg.max()-fg.min())*255)
-    cv2.imwrite('tmp2.png', (res - fg.min())/(fg.max()-fg.min())*255)
+    #cv2.imwrite('tmp1.png', (fg - fg.min())/(fg.max()-fg.min())*255)
+    #cv2.imwrite('tmp2.png', (res - fg.min())/(fg.max()-fg.min())*255)
+
+    #DareDevil
+    cv2.imwrite('fg_patch.png', (fg_patch - fg.min()) / (-fg.min() * 2) * 255)
+    cv2.imwrite('tmp1.png', (fg - fg.min())/(-fg.min()*2)*255)
+    cv2.imwrite('tmp2.png', (res - fg.min())/(-fg.min()*2)*255)
 
 
     # look up table
     for value in set(img_den[mask].ravel()):
         res[img_den==value] = res[img_den==value]*fg[(img_den==value)&mask].std()/res[(img_den==value)&mask].std()
 
-    cv2.imwrite('tmp3.png', (res - fg.min())/(fg.max()-fg.min())*255)
+    #cv2.imwrite('tmp3.png', (res - fg.min())/(fg.max()-fg.min())*255)
+    cv2.imwrite('tmp3.png', (res - fg.min())/(-fg.min()*2)*255)
     t2 = time.time()
     print('time for synthesize:', t2-t1)
     import pdb;pdb.set_trace()
