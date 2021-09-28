@@ -21,8 +21,11 @@ def min_STSIM(features, params, size=(1,1,128,128), output_dir = None):
     features = Variable( features,  requires_grad=False)
     img = Variable( img, requires_grad = True)
 
+    res = img.detach().cpu().squeeze(0).squeeze(0)
+    res = res.numpy()
     for i in tqdm(range(21)):
         #if i%10==0:
+
         if i%5==0:
             # hist match
             tmp = img.detach().cpu().squeeze(0).squeeze(0)
@@ -47,7 +50,9 @@ def min_STSIM(features, params, size=(1,1,128,128), output_dir = None):
         if output_dir is not None:
             if not os.path.isdir(output_dir):
                 os.mkdir(output_dir)
-            cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+14)*255/44)
+            cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+14)*255/28)   # DareDevil
+            #cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+23)*255/46)   # law
+            #cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+15)*255/30)    # tax
 
         '''
         if i>0:
