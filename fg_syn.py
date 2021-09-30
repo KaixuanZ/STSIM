@@ -9,6 +9,29 @@ from scipy.stats import gennorm
 import pyrtools as pt
 import time
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def RGB2YUV(rgb):
+    m = np.array([[0.29900, -0.16874, 0.50000],
+                  [0.58700, -0.33126, -0.41869],
+                  [0.11400, 0.50000, -0.08131]])
+
+    yuv = np.dot(rgb, m)
+    yuv[:, :, 1:] += 128.0
+    return yuv
+
+def YUV2RGB(yuv):
+    m = np.array([[1.0, 1.0, 1.0],
+                  [-0.000007154783816076815, -0.3441331386566162, 1.7720025777816772],
+                  [1.4019975662231445, -0.7141380310058594, 0.00001542569043522235]])
+
+    rgb = np.dot(yuv, m)
+    rgb[:, :, 0] -= 179.45477266423404
+    rgb[:, :, 1] += 135.45870971679688
+    rgb[:, :, 2] -= 226.8183044444304
+    return rgb
+
 def expand(fg):
 
     H, W = fg.shape
@@ -101,6 +124,23 @@ def pyr_params(fg, mask=None):
             params[key] = gennorm.fit(pyr.pyr_coeffs[key][mask1].ravel())
     return params
 
+def fg_synthesize(fg, size, iter, output_dir):
+    m = Metric('SF', device)
+
+    # STSIM features based on mask
+    print('extracting STSIM features')
+    feature_fg = STSIM_features(fg, m)
+
+    print('computing subbands statistics')
+    params = pyr_params(fg)
+
+    t1 = time.time()
+    # synthesize a patch of film grain (size * size)
+    print('synthesizing film grain noise')
+    fg_syn = min_STSIM(feature_fg, params, output_dir=output_dir, size=(1, 1, 2 * size, 2 * size), iter=iter)
+
+    return fg_syn
+
 if __name__ == '__main__':
     original = 'data/DareDevil/original/frame_00300.png'
     denoised = 'data/DareDevil/denoised/frame_00300.png'
@@ -108,54 +148,61 @@ if __name__ == '__main__':
     h, w = 350, 1150
     size = 128
 
-    img_o, img_den, fg = data_loader(original, denoised)
-    fg_patch = fg[h:h+size, w:w+size]
-    #import pdb;pdb.set_trace()
-    '''
-    # mask of flat region
-    edges = cv2.Canny(img_den.astype(np.uint8), 50, 100)
-    kernel = np.ones((5,5), np.uint8)
-    mask = cv2.dilate(edges, kernel, iterations=1)
-    mask = ~mask.astype(bool)
-    '''
+    color = 1
+    iter = 0    #21
+    if color==1:
+        img_o, img_den, fg = data_loader(original, denoised, color)
+        '''
+        img_o_yuv = cv2.cvtColor(img_o.astype(np.uint8), cv2.COLOR_BGR2YUV)
+        img_den_yuv = cv2.cvtColor(img_den.astype(np.uint8), cv2.COLOR_BGR2YUV)
+        fg_yuv = img_o_yuv.astype(float) - img_den_yuv.astype(float)
+        '''
+        fg_yuv = RGB2YUV(fg[:,:,::-1])
+        res_yuv = []
+        fg_patch = fg_yuv[h:h + size, w:w + size]
+        res_yuv = [fg_synthesize(fg_patch[:,:,c], size, iter, output_dir) for c in range(3)]
+        res_yuv = cv2.merge(res_yuv)
+        res = YUV2RGB(res_yuv)
+        res = res[:,:,::-1]
 
-    '''
-    from matplotlib import pyplot as plt
-    plt.imshow(mask, cmap='gray')
-    plt.show()
-    import pdb;pdb.set_trace()
-    '''
+    elif color==0:
+        img_o, img_den, fg = data_loader(original, denoised, color)
 
-    # look up table
-    #LUT = {}
-    #for value in set(img_den[mask].ravel()):
-    #    LUT[value] = fg[(img_den==value)&mask].std()
+        fg_patch = fg[h:h+size, w:w+size]
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    m = Metric('SF', device)
 
-    # STSIM features based on mask
-    print('extracting STSIM features')
-    feature_fg = STSIM_features(fg_patch, m)
+        '''
+        # mask of flat region
+        edges = cv2.Canny(img_den.astype(np.uint8), 50, 100)
+        kernel = np.ones((5,5), np.uint8)
+        mask = cv2.dilate(edges, kernel, iterations=1)
+        mask = ~mask.astype(bool)
+        '''
 
-    print('computing subbands statistics')
-    params = pyr_params(fg_patch)
+        '''
+        from matplotlib import pyplot as plt
+        plt.imshow(mask, cmap='gray')
+        plt.show()
+        import pdb;pdb.set_trace()
+        '''
 
-    t1 = time.time()
-    # synthesize a patch of film grain (size * size)
-    print('synthesizing film grain noise')
-    fg_syn = min_STSIM(feature_fg, params, output_dir=output_dir, size=(1,1,2*size,2*size))
-    res = fg_syn
+        # look up table
+        #LUT = {}
+        #for value in set(img_den[mask].ravel()):
+        #    LUT[value] = fg[(img_den==value)&mask].std()
+        t1 = time.time()
 
-    t2 = time.time()
-    print('time for synthesize:', t2-t1)
-    # a larger image by concatenating 32 by 32 patch
-    #res = expand(fg_syn)
-    #res = expand(fg[450:450+128,700:700+128])
-    #res = res[:img_o.shape[0], :img_o.shape[1]]
+        res = fg_synthesize(fg_patch, size, iter, output_dir)
 
-    #cv2.imwrite('tmp1.png', (fg - fg.min())/(fg.max()-fg.min())*255)
-    #cv2.imwrite('tmp2.png', (res - fg.min())/(fg.max()-fg.min())*255)
+        t2 = time.time()
+        print('time for synthesize:', t2-t1)
+        # a larger image by concatenating 32 by 32 patch
+        #res = expand(fg_syn)
+        #res = expand(fg[450:450+128,700:700+128])
+        #res = res[:img_o.shape[0], :img_o.shape[1]]
+
+        #cv2.imwrite('tmp1.png', (fg - fg.min())/(fg.max()-fg.min())*255)
+        #cv2.imwrite('tmp2.png', (res - fg.min())/(fg.max()-fg.min())*255)
 
     #DareDevil
     cv2.imwrite(os.path.join(output_dir,'fg_patch.png'), (fg_patch - fg.min()) / (-fg.min() * 2) * 255)

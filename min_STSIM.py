@@ -10,7 +10,7 @@ from hist_matching import steerable_hist_match
 from skimage import exposure
 from skimage.exposure import match_histograms
 
-def min_STSIM(features, params, size=(1,1,128,128), output_dir = None):
+def min_STSIM(features, params, size=(1,1,128,128), output_dir = None, iter=21):
     img = torch.rand(size)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -23,43 +23,39 @@ def min_STSIM(features, params, size=(1,1,128,128), output_dir = None):
 
     res = img.detach().cpu().squeeze(0).squeeze(0)
     res = res.numpy()
-    for i in tqdm(range(21)):
-        #if i%10==0:
+    if iter>0:
+        for i in tqdm(range(iter)):
+            #if i%10==0:
 
-        if i%5==0:
-            # hist match
-            tmp = img.detach().cpu().squeeze(0).squeeze(0)
-            tmp = tmp.numpy()
-            tmp = steerable_hist_match(params, tmp)
-            img = Variable(torch.from_numpy(tmp).double().unsqueeze(0).unsqueeze(0), requires_grad = True)
+            if i%5==0:
+                # hist match
+                tmp = img.detach().cpu().squeeze(0).squeeze(0)
+                tmp = tmp.numpy()
+                tmp = steerable_hist_match(params, tmp)
+                img = Variable(torch.from_numpy(tmp).double().unsqueeze(0).unsqueeze(0), requires_grad = True)
 
-        optimizer = optim.Adam( [img], lr=0.5/(max(1,i//5)) )
+            optimizer = optim.Adam( [img], lr=0.5/(max(1,i//5)) )
 
-        optimizer.zero_grad()
-        stsim_loss = torch.sum((features - m.STSIM(img))**2) + torch.sum(img**2)
-        stsim_loss.backward()
-        optimizer.step()
-        #print(stsim_loss)
+            optimizer.zero_grad()
+            stsim_loss = torch.sum((features - m.STSIM(img))**2) + torch.sum(img**2)
+            stsim_loss.backward()
+            optimizer.step()
+            #print(stsim_loss)
 
-        res = img.detach().cpu().squeeze(0).squeeze(0)
-        res = res.numpy()
-        #noise = np.random.randn(*res.shape) * res.std() * 0.2
-        #res = res + noise
+            res = img.detach().cpu().squeeze(0).squeeze(0)
+            res = res.numpy()
+            #noise = np.random.randn(*res.shape) * res.std() * 0.2
+            #res = res + noise
+            res = steerable_hist_match(params, res)
+
+            if output_dir is not None:
+                if not os.path.isdir(output_dir):
+                    os.mkdir(output_dir)
+                cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+14)*255/28)   # DareDevil
+                #cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+23)*255/46)   # law
+                #cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+15)*255/30)    # tax
+    else:
         res = steerable_hist_match(params, res)
-
-        if output_dir is not None:
-            if not os.path.isdir(output_dir):
-                os.mkdir(output_dir)
-            cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+14)*255/28)   # DareDevil
-            #cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+23)*255/46)   # law
-            #cv2.imwrite(os.path.join(output_dir, str(i).zfill(3) + '.png'), (res+15)*255/30)    # tax
-
-        '''
-        if i>0:
-            delta = np.mean(np.abs(res-res_pre))*255
-            print(i,delta)
-        res_pre = res
-        '''
     return res
 
 if __name__ == '__main__':
