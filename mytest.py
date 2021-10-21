@@ -1,42 +1,74 @@
+import argparse
 import numpy as np
-import cv2
+from utils.dataset import Dataset
+from utils.parse_config import parse_config
 
-img = cv2.imread('data/iter05.png', 0)
-H,W = img.shape
+import torch
+import torchvision.transforms as transforms
+import torch.nn.functional as F
+import scipy.stats
 
+from PIL import Image, ImageOps
 
-print(H,W)
-k=2
-#res = np.zeros([H*k,W*k])
-res = np.zeros([H*k + 2,W*k + 2])
+h,w,size = 350,1150,128
+def read_img(path, device, grayscale=True, crop=True):
+    img = Image.open(path)
+    img = ImageOps.grayscale(img)
+    if grayscale:
+        img = transforms.ToTensor()(img)
+        img = img.unsqueeze(0)
+    if crop:
+        img = img[:,:,h:h+size,w:w+size]
+    return img.to(device).double()
 
-for i in range(2*k):
-#for i in range(4*k):
-    for j in range(2*k):
-#    for j in range(4*k):
-        ii,jj = int(np.random.randint(H//4+1)-H//8 -1), int(np.random.randint(H//4+1)-H//8 -1)
-#        src = img[H*3//8+ii:H*5//8+ii,W*3//8+jj:W*5//8+jj]
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, default="config/test.cfg", help="path to data config file")
+    parser.add_argument("--batch_size", type=int, default=4080, help="size of each image batch")
+    opt = parser.parse_args()
+    print(opt)
 
-        #src = img[H*1//4+ii:H*3//4+ii,W*1//4+jj:W*3//4+jj]
-        src = img[H*1//4+ii -1:H*3//4+ii +1, W*1//4+jj -1:W*3//4+jj +1]
+    config = parse_config(opt.config)
+    print(config)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        src = cv2.flip(src, np.random.randint(2))
-        tmp = np.random.randint(4)
-        if tmp == 1:
-            src = cv2.rotate(src, cv2.ROTATE_90_CLOCKWISE)
-        elif tmp == 2:
-            src = cv2.rotate(src, cv2.ROTATE_180)
-        elif tmp == 3:
-            src = cv2.rotate(src, cv2.ROTATE_90_COUNTERCLOCKWISE)
-#        res[i*H//4:(i+1)*H//4,j*W//4:(j+1)*W//4] = src
-        #res[i*H//2:(i+1)*H//2,j*W//2:(j+1)*W//2] = src
-        res[i*H//2:(i+1)*H//2 +2,j*W//2:(j+1)*W//2 +2] = res[i*H//2:(i+1)*H//2 +2,j*W//2:(j+1)*W//2 +2] + src
-for i in range(1,2*k):
-    res[i*H//2:i*H//2 +2] = res[i*H//2:i*H//2 +2]/2
-for j in range(1,2*k):
-    res[:,j * W // 2:j * W // 2 + 2] = res[:,j * W // 2:j * W // 2 + 2] / 2
+    # read train config
+    import json
+    with open(config['train_config_path']) as f:
+        train_config = json.load(f)
+        print(train_config)
 
-import pdb;pdb.set_trace()
+    path_o = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_original/frame_00300.png'
+    path_den = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_denoised/frame_00300.png'
+    path_dec = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_decoded/frame_00300.png'
+    path_ren_00 = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_renoised/frame_00300.png'
+    path_ren_01 = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_renoised_01/frame_00300.png'
+    path_ren_02 = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_renoised_02/frame_00300.png'
+    path_ren_03 = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_renoised_03/frame_00300.png'
+    path_ren_04 = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_renoised_04/frame_00300.png'
 
-#cv2.imwrite('tmp.png',res)
-cv2.imwrite('tmp2.png',res[1:-1,1:-1])
+    img_o = read_img(path_o, device)
+    img_den = read_img(path_den, device)
+    img_dec = read_img(path_dec, device)
+    img_ren_00 = read_img(path_ren_00, device)
+    img_ren_01 = read_img(path_ren_01, device)
+    img_ren_02 = read_img(path_ren_02, device)
+    img_ren_03 = read_img(path_ren_03, device)
+    img_ren_04 = read_img(path_ren_04, device)
+
+    # test with different model
+    from metrics.STSIM import *
+
+    filter = train_config['filter']
+    m_g = Metric(filter, device=device)
+
+    model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), filter = filter, device = device)
+    model.load_state_dict(torch.load(train_config['weights_path']))
+    model.to(device).double()
+    pred0 = model(img_o - img_den, img_ren_00 - img_dec)
+    pred1 = model(img_o - img_den, img_ren_01 - img_dec)
+    pred2 = model(img_o - img_den, img_ren_02 - img_dec)
+    pred3 = model(img_o - img_den, img_ren_03 - img_dec)
+    pred4 = model(img_o - img_den, img_ren_04 - img_dec)
+    print(pred0, pred1, pred2, pred3, pred4)
+    import pdb;pdb.set_trace()
