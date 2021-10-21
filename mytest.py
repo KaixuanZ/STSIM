@@ -8,6 +8,7 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 import scipy.stats
 
+import os
 from PIL import Image, ImageOps
 
 h,w,size = 350,1150,128
@@ -38,14 +39,15 @@ if __name__ == '__main__':
         train_config = json.load(f)
         print(train_config)
 
-    path_o = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_original/frame_00300.png'
-    path_den = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_denoised/frame_00300.png'
-    path_dec = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_decoded/frame_00300.png'
-    path_ren_00 = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_renoised/frame_00300.png'
-    path_ren_01 = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_renoised_01/frame_00300.png'
-    path_ren_02 = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_renoised_02/frame_00300.png'
-    path_ren_03 = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_renoised_03/frame_00300.png'
-    path_ren_04 = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/frame_renoised_04/frame_00300.png'
+    input_dir = '/dataset/NetflixData/DareDevil_yuv_1920_1080_10bit/'
+    path_o = os.path.join(input_dir ,'frame_original/frame_00300.png')
+    path_den = os.path.join(input_dir ,'frame_denoised/frame_00300.png')
+    path_dec = os.path.join(input_dir ,'frame_decoded/frame_00300.png')
+    path_ren_00 = os.path.join(input_dir ,'frame_renoised/frame_00300.png')
+    path_ren_01 = os.path.join(input_dir ,'frame_renoised_01/frame_00300.png')
+    path_ren_02 = os.path.join(input_dir ,'frame_renoised_02/frame_00300.png')
+    path_ren_03 = os.path.join(input_dir ,'frame_renoised_03/frame_00300.png')
+    path_ren_04 = os.path.join(input_dir ,'frame_renoised_04/frame_00300.png')
 
     img_o = read_img(path_o, device)
     img_den = read_img(path_den, device)
