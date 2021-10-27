@@ -35,33 +35,33 @@ def YUV2RGB(yuv):
 def expand(fg):
 
     H, W = fg.shape
-
-    print(H, W) # 128 * 128
-    # res = np.zeros([H*k,W*k])
-    res = np.zeros([H * 10, W * 16])
-
     k = 4
     edge = 4
+    print(H, W) # 128 * 128
+    #res = np.zeros([H*k,W*k])
+    res = np.zeros([H * 10, W * 10])
 
     for i in range(10*k):
-        for j in range(16*k):
+        for j in range(10*k):
             ii, jj = int(np.random.randint(H-2*edge-H//k)), int(np.random.randint(W-2*edge-W//k))
 
             src = fg[edge + ii:edge + H//k +ii, edge + jj:edge + W//k +jj]
 
             src = cv2.flip(src, np.random.randint(2))
-            tmp = np.random.randint(4)
-            if tmp == 1:
-                src = cv2.rotate(src, cv2.ROTATE_90_CLOCKWISE)
-            elif tmp == 2:
-                src = cv2.rotate(src, cv2.ROTATE_180)
-            elif tmp == 3:
-                src = cv2.rotate(src, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
+            # tmp = np.random.randint(4)
+            # if tmp == 1:
+            #     src = cv2.rotate(src, cv2.ROTATE_90_CLOCKWISE)
+            # elif tmp == 2:
+            #     src = cv2.rotate(src, cv2.ROTATE_180)
+            # elif tmp == 3:
+            #     src = cv2.rotate(src, cv2.ROTATE_90_COUNTERCLOCKWISE)
+
             #        res[i*H//4:(i+1)*H//4,j*W//4:(j+1)*W//4] = src
             # res[i*H//2:(i+1)*H//2,j*W//2:(j+1)*W//2] = src
-            tmp = np.random.randint(4) - 1
-            if tmp <2:
-                src = cv2.flip(src, tmp)
+            # tmp = np.random.randint(4) - 1
+            # if tmp <2:
+            #     src = cv2.flip(src, tmp)
             res[i * H // k:(i + 1) * H // k, j * W // k:(j + 1) * W // k] = src
     return res
 
@@ -148,19 +148,15 @@ if __name__ == '__main__':
     h, w = 350, 1150
     size = 128
 
-    color = 1
-    iter = 0    #21
+    color = 0
+    iter = 11
     if color==1:
         img_o, img_den, fg = data_loader(original, denoised, color)
-        '''
-        img_o_yuv = cv2.cvtColor(img_o.astype(np.uint8), cv2.COLOR_BGR2YUV)
-        img_den_yuv = cv2.cvtColor(img_den.astype(np.uint8), cv2.COLOR_BGR2YUV)
-        fg_yuv = img_o_yuv.astype(float) - img_den_yuv.astype(float)
-        '''
+        fg_patch = fg[h:h + size, w:w + size]
         fg_yuv = RGB2YUV(fg[:,:,::-1])
         res_yuv = []
-        fg_patch = fg_yuv[h:h + size, w:w + size]
-        res_yuv = [fg_synthesize(fg_patch[:,:,c], size, iter, output_dir) for c in range(3)]
+        fg_patch_yuv = fg_yuv[h:h + size, w:w + size]
+        res_yuv = [fg_synthesize(fg_patch_yuv[:,:,c], size, iter, output_dir) for c in range(3)]
         res_yuv = cv2.merge(res_yuv)
         res = YUV2RGB(res_yuv)
         res = res[:,:,::-1]
@@ -169,7 +165,6 @@ if __name__ == '__main__':
         img_o, img_den, fg = data_loader(original, denoised, color)
 
         fg_patch = fg[h:h+size, w:w+size]
-
 
         '''
         # mask of flat region
@@ -197,9 +192,9 @@ if __name__ == '__main__':
         t2 = time.time()
         print('time for synthesize:', t2-t1)
         # a larger image by concatenating 32 by 32 patch
-        #res = expand(fg_syn)
+        res = expand(res)
         #res = expand(fg[450:450+128,700:700+128])
-        #res = res[:img_o.shape[0], :img_o.shape[1]]
+        res = res[:img_o.shape[0], :img_o.shape[1]]
 
         #cv2.imwrite('tmp1.png', (fg - fg.min())/(fg.max()-fg.min())*255)
         #cv2.imwrite('tmp2.png', (res - fg.min())/(fg.max()-fg.min())*255)
@@ -209,14 +204,23 @@ if __name__ == '__main__':
     cv2.imwrite(os.path.join(output_dir,'fg_frame.png'), (fg - fg.min())/(-fg.min()*2)*255)
     cv2.imwrite(os.path.join(output_dir,'fg_synthesized.png'), (res - fg.min())/(-fg.min()*2)*255)
 
-    '''
+
+    # mask of flat region
+    edges = cv2.Canny(img_den.astype(np.uint8), 50, 100)
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.dilate(edges, kernel, iterations=1)
+    mask = ~mask.astype(bool)
+
     # look up table
+    # LUT = {}
+    # for value in set(img_den[mask].ravel()):
+    #     LUT[value] = fg[(img_den == value) & mask].std()
     for value in set(img_den[mask].ravel()):
         res[img_den==value] = res[img_den==value]*fg[(img_den==value)&mask].std()/res[(img_den==value)&mask].std()
 
-    #cv2.imwrite('tmp3.png', (res - fg.min())/(fg.max()-fg.min())*255)
-    cv2.imwrite('tmp3.png', (res - fg.min())/(-fg.min()*2)*255)
-    '''
+
+    cv2.imwrite(os.path.join(output_dir,'fg_synthesized_scaled.png'), (res - fg.min())/(-fg.min()*2)*255)
+
 
     import pdb;pdb.set_trace()
 
