@@ -15,13 +15,9 @@ class Spyr_PyTorch(object):
         :param device:
         :param wsize: window size
         '''
-        self.height = height  # including low-pass and high-pass
-        self.nbands = nbands  # number of orientation bands
-        self.device = torch.device('cpu') if device is None else device
-
-        self.filter = filter(self.device)    # parameters of filterbank filters
-        self.wsize = wsize
-        self.sub_sample = sub_sample
+        params = vars()
+        del params['self']
+        self.__dict__.update(params)
 
     def build(self, img):
         '''

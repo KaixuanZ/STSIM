@@ -50,11 +50,9 @@ class SCFpyr_PyTorch(object):
     '''
 
     def __init__(self, height=5, nbands=4, scale_factor=2, sub_sample=True, device=None):
-        self.height = height  # including low-pass and high-pass
-        self.nbands = nbands  # number of orientation bands
-        self.scale_factor = scale_factor
-        self.sub_sample = sub_sample  # downsample low pass subband
-        self.device = torch.device('cpu') if device is None else device
+        params = vars()
+        del params['self']
+        self.__dict__.update(params)
 
         # Cache constants
         self.lutsize = 1024
