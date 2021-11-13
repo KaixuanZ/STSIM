@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 class Spyr_PyTorch(object):
 
-    def __init__(self, filter, height=5, nbands=4, sub_sample=True, device=None, wsize = 128):
+    def __init__(self, filter, device, height=5, nbands=4, sub_sample=True):
         '''
         :param filter: a function which returns filter parameters
         :param height:
