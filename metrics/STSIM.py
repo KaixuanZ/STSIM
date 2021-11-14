@@ -25,7 +25,7 @@ class MyLinear(nn.Module):
 
 class Metric:
 	# implementation of STSIM global (no sliding window), as the global version has a better performance, and also easier to implement
-	def __init__(self, filter, device, height=5, nbands=4, sub_sample=True, dim=82, blocksize=None):
+	def __init__(self, filter, device, height=5, nbands=4, sub_sample=True, dim=82, blocksize=None, stepsize=None):
 		params = vars()
 		del params['self']
 		self.__dict__.update(params)
@@ -128,7 +128,8 @@ class Metric:
 			for i in [0, -1]:
 				coeffs[i] = coeffs[i].abs()
 
-		I,J = coeffs[0].shape[2]//self.blocksize, coeffs[0].shape[3]//self.blocksize	# block counter
+		I = (coeffs[0].shape[2] - self.blocksize)//self.stepsize + 1
+		J = (coeffs[0].shape[3] - self.blocksize)//self.stepsize + 1	# block counter
 
 		# compute block size in current subband
 		def curr_blocksize(coeff_ref, coeff_cur):
@@ -144,7 +145,8 @@ class Metric:
 				# single subband statistics
 				for coeff in self.fb.getlist(coeffs):
 					bs = curr_blocksize(coeffs[0], coeff)
-					c = coeff[:,:,i*bs:(i+1)*bs, j*bs:(j+1)*bs]
+					ss = bs//self.blocksize*self.stepsize
+					c = coeff[:, :, i*ss:i*ss+bs, j*ss:j*ss+bs]
 
 					mean = torch.mean(c, dim=[1, 2, 3])
 					var = torch.var(c, dim=[1, 2, 3])
@@ -161,8 +163,9 @@ class Metric:
 				for orients in coeffs[1:-1]:
 					for (coeff1, coeff2) in list(itertools.combinations(orients, 2)):
 						bs = curr_blocksize(coeffs[0], coeff1)
-						c1 = coeff1[:, :, i * bs:(i + 1) * bs, j * bs:(j + 1) * bs]
-						c2 = coeff2[:, :, i * bs:(i + 1) * bs, j * bs:(j + 1) * bs]
+						ss = bs // self.blocksize * self.stepsize
+						c1 = coeff1[:, :, i*ss:i*ss+bs, j*ss:j*ss+bs]
+						c2 = coeff2[:, :, i*ss:i*ss+bs, j*ss:j*ss+bs]
 
 						c1 = torch.abs(c1)
 						c1 = c1 - torch.mean(c1, dim=[1, 2, 3]).reshape([-1, 1, 1, 1])
@@ -176,12 +179,14 @@ class Metric:
 					for height in range(len(coeffs) - 3):
 						coeff1 = torch.abs(coeffs[height + 1][orient])
 						bs = curr_blocksize(coeffs[0], coeff1)
-						c1 = coeff1[:, :, i * bs:(i + 1) * bs, j * bs:(j + 1) * bs]
+						ss = bs // self.blocksize * self.stepsize
+						c1 = coeff1[:, :, i*ss:i*ss+bs, j*ss:j*ss+bs]
 						c1 = c1 - torch.mean(c1, dim=[1, 2, 3]).reshape([-1, 1, 1, 1])
 
 						coeff2 = torch.abs(coeffs[height + 2][orient])
 						bs = curr_blocksize(coeffs[0], coeff2)
-						c2 = coeff2[:, :, i * bs:(i + 1) * bs, j * bs:(j + 1) * bs]
+						ss = bs // self.blocksize * self.stepsize
+						c2 = coeff2[:, :, i*ss:i*ss+bs, j*ss:j*ss+bs]
 						c2 = c2 - torch.mean(c2, dim=[1, 2, 3]).reshape([-1, 1, 1, 1])
 						c1 = F.interpolate(c1, size=c2.shape[2:])
 						denom = torch.sqrt(torch.var(c1, dim=[1, 2, 3]) * torch.var(c2, dim=[1, 2, 3]))
@@ -375,11 +380,14 @@ if __name__ == '__main__':
 		img = torch.stack([img,img],dim=0)  # batchsize = 2
 
 		device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-		m1 = Metric('SF', height=5, nbands=4, device=device, dim=82, blocksize=64)
+		m1 = Metric('SF', height=5, nbands=4, device=device, dim=82, blocksize=64, stepsize=32)
 		res1 = m1.STSIM(img.double().to(device))
 
-		m2 = Metric('SCF', height=5, nbands=1, device=device, dim=22, blocksize=128)
+		m2 = Metric('SCF', height=5, nbands=1, device=device, dim=22, blocksize=128, stepsize=64)
 		res2 = m2.STSIM(img.double().to(device))
+
+		m3 = Metric('SCF', height=5, nbands=1, device=device, dim=22, blocksize=128, stepsize=128)
+		res3 = m3.STSIM(img.double().to(device))
 		import pdb;
 		pdb.set_trace()
 	test2()
