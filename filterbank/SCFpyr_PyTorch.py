@@ -49,7 +49,7 @@ class SCFpyr_PyTorch(object):
 
     '''
 
-    def __init__(self, height=5, nbands=4, scale_factor=2, sub_sample=True, device=None):
+    def __init__(self, device, height=5, nbands=4, scale_factor=2, sub_sample=True):
         params = vars()
         del params['self']
         self.__dict__.update(params)
