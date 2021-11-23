@@ -86,6 +86,14 @@ def evaluation(pred, Y, mask):
     res['KRCC'] = float("{:.3f}".format(KCoeff))
     return res
 
+def save_as_np(pred, Y, mask, pt):
+    path = 'STSIM-Mf-local-v1'
+    # os.mkdir(path)
+    np.save(os.path.join(path,'pred_Mf.npy'), pred.detach().cpu().numpy())
+    np.save(os.path.join(path,'label.npy'), Y.detach().cpu().numpy())    # label
+    np.save(os.path.join(path,'mask.npy'), mask.detach().cpu().numpy())  # class
+    np.save(os.path.join(path,'pt.npy'), pt.detach().cpu().numpy())  # perceptual threshold
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="config/test.cfg", help="path to data config file")
@@ -110,7 +118,9 @@ if __name__ == '__main__':
         train_config = json.load(f)
         print(train_config)
 
-    X1, X2, Y, mask = next(iter(test_loader))
+    X1, X2, Y, mask, pt = next(iter(test_loader))
+
+
 
     # test with different model
     if config['model'] == 'PSNR':
@@ -127,12 +137,6 @@ if __name__ == '__main__':
 
         filter = train_config['filter']
         m_g = Metric(filter, device=device)
-
-        pred = m_g.STSIM1(X1, X2)
-        print("STSIM-1 test:", evaluation(pred, Y, mask)) # {'PLCC': 0.834, 'SRCC': 0.82, 'KRCC': 0.708}
-
-        pred = m_g.STSIM2(X1, X2)
-        print("STSIM-2 test:", evaluation(pred, Y, mask))  #  {'PLCC': 0.899, 'SRCC': 0.881, 'KRCC': 0.775}
 
         path = train_config['weights_path'].split('/')
         path[-1] = 'STSIM-M.pt'
@@ -151,8 +155,8 @@ if __name__ == '__main__':
         model.to(device).double()
         pred = model(X1, X2)
         print("STSIM-M (trained) test:", evaluation(pred, Y, mask)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
-
-        #import pdb;pdb.set_trace()
+        save_as_np(pred, Y, mask, pt)
+        import pdb;pdb.set_trace()
     elif config['model'] == 'DISTS':
         test_loader = torch.utils.data.DataLoader(testset, batch_size=60)
         from metrics.DISTS_pt import *

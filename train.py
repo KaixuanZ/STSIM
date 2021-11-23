@@ -58,9 +58,9 @@ if __name__ == '__main__':
     # model, STSIM or DISTS
     if config['model'] == 'STSIM':
         # prepare data
-        X1_train, X2_train, Y_train, mask_train = next(iter(train_loader))
-        X1_valid, X2_valid, Y_valid, mask_valid = next(iter(valid_loader))
-        X1_test, X2_test, Y_test, mask_test = next(iter(test_loader))
+        X1_train, X2_train, Y_train, mask_train, pt_train = next(iter(train_loader))
+        X1_valid, X2_valid, Y_valid, mask_valid, pt_valid = next(iter(valid_loader))
+        X1_test, X2_test, Y_test, mask_test, pt_test = next(iter(test_loader))
 
         from metrics.STSIM import *
         m = Metric(config['filter'], device)
@@ -73,6 +73,8 @@ if __name__ == '__main__':
         Y_valid = Y_valid.to(device)
         mask_train = mask_train.to(device)
         mask_valid = mask_valid.to(device)
+        pt_train = pt_train.to(device)
+        pt_valid = pt_valid.to(device)
 
         # collect all data and estimate STSIM-M and STSIM-I
         X1 = torch.cat((X1_train, X1_valid))
@@ -105,7 +107,8 @@ if __name__ == '__main__':
             if loss_type == 'MSE':
                 loss = torch.mean((pred - Y_train) ** 2)
             elif loss_type == 'Coeff':
-                loss = -PearsonCoeff(pred, Y_train, mask_train)  # min neg ==> max
+                # import pdb;pdb.set_trace()
+                loss = -PearsonCoeff(pred, Y_train, mask_train)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

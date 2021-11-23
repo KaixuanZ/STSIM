@@ -42,8 +42,16 @@ class Dataset(torch.utils.data.Dataset):
         ref_img = Image.open(ref_img_path)
         ref_img = transforms.ToTensor()(ref_img)
 
-        return ref_img, dist_img, y, int(t)
+        p = self._getattribute()[int(d), int(t)]
+        return ref_img, dist_img, y, int(t), p
 
+    def _getattribute(self):
+        '''
+        Returns: perceptual equivalent (1==True 0==False)
+        '''
+        df = pd.read_excel(self.label_file, header=None)
+        label = df.iloc[11:20, :10].to_numpy().astype(np.double)
+        return label
 
     def _getlabels(self):
         '''
@@ -52,11 +60,11 @@ class Dataset(torch.utils.data.Dataset):
         :return: [i-th distortion, j-th texture, k-th version of label]
         '''
         df = pd.read_excel(self.label_file, header=None)
-        #label1 = df.iloc[:9,:10].to_numpy().astype(np.double)
+        label1 = df.iloc[:9,:10].to_numpy().astype(np.double)
         #label2 = df.iloc[12:21,:10].to_numpy().astype(np.double)
-        label3 = df.iloc[31:40,:10].to_numpy().astype(np.double)
+        #label3 = df.iloc[31:40,:10].to_numpy().astype(np.double)
         #return np.stack([label1,label2,label3], axis=2)
-        return label3
+        return label1
 
 class Dataset_Corbis(torch.utils.data.Dataset):
     def __init__(self, data_dir):
