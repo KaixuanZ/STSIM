@@ -6,8 +6,9 @@ from utils.parse_config import parse_config
 import torch
 import torch.nn.functional as F
 import scipy.stats
+import os
 
-def SpearmanCoeff(X, Y, mask):
+def SpearmanCoeff(X, Y):
     '''
     Args:
         X: [N, 1] neural prediction for one batch, or [N] some other metric's output
@@ -15,21 +16,12 @@ def SpearmanCoeff(X, Y, mask):
         mask: [N] indicator of correspondent class, e.g. [0,0,1,1] ,means first two samples are class 0, the rest two samples are class 1
     Returns: Borda's rule of pearson coeff between X&Y, the same as using numpy.corrcoef()
     '''
-    coeff = 0
-    N = set(mask.detach().cpu().numpy())
     X = X.squeeze(-1)
     X = X.detach().cpu().numpy()
     Y = Y.detach().cpu().numpy()
-    mask = mask.detach().cpu().numpy()
-    for i in N:
-        X1 = X[mask == i]
-        X2 = Y[mask == i]
+    return np.abs(scipy.stats.spearmanr(X, Y).correlation)
 
-        coeff += np.abs(scipy.stats.spearmanr(X1, X2).correlation)
-    return coeff / len(N)
-
-
-def KendallCoeff(X, Y, mask):
+def KendallCoeff(X, Y):
     '''
     Args:
         X: [N, 1] neural prediction for one batch, or [N] some other metric's output
@@ -37,20 +29,12 @@ def KendallCoeff(X, Y, mask):
         mask: [N] indicator of correspondent class, e.g. [0,0,1,1] ,means first two samples are class 0, the rest two samples are class 1
     Returns: Borda's rule of pearson coeff between X&Y, the same as using numpy.corrcoef()
     '''
-    coeff = 0
-    N = set(mask.detach().cpu().numpy())
     X = X.squeeze(-1)
     X = X.detach().cpu().numpy()
     Y = Y.detach().cpu().numpy()
-    mask = mask.detach().cpu().numpy()
-    for i in N:
-        X1 = X[mask == i]
-        X2 = Y[mask == i]
+    return np.abs(scipy.stats.kendalltau(X, Y).correlation)
 
-        coeff += np.abs(scipy.stats.kendalltau(X1, X2).correlation)
-    return coeff / len(N)
-
-def PearsonCoeff(X, Y, mask):
+def PearsonCoeff(X, Y):
     '''
     Args:
         X: [N, 1] neural prediction for one batch, or [N] some other metric's output
@@ -58,33 +42,71 @@ def PearsonCoeff(X, Y, mask):
         mask: [N] indicator of correspondent class, e.g. [0,0,1,1] ,means first two samples are class 0, the rest two samples are class 1
     Returns: Borda's rule of pearson coeff between X&Y, the same as using numpy.corrcoef()
     '''
-    coeff = 0
-    N = set(mask.detach().cpu().numpy())
     X = X.squeeze(-1)
-    for i in N:
-        X1 = X[mask == i].double()
-        X1 = X1 - X1.mean()
-        X2 = Y[mask == i].double()
-        X2 = X2 - X2.mean()
 
-        nom = torch.dot(X1, X2)
-        denom = torch.sqrt(torch.sum(X1 ** 2) * torch.sum(X2 ** 2))
+    X1 = X.double()
+    X1 = X1 - X1.mean()
+    X2 = Y.double()
+    X2 = X2 - X2.mean()
 
-        coeff += torch.abs(nom / (denom + 1e-10))
-    return coeff / len(N)
+    nom = torch.dot(X1, X2)
+    denom = torch.sqrt(torch.sum(X1 ** 2) * torch.sum(X2 ** 2))
 
-def evaluation(pred, Y, mask):
+    coeff = torch.abs(nom / (denom + 1e-10))
+    return coeff
+
+def evaluation(pred, Y):
     res = {}
 
-    PCoeff = PearsonCoeff(pred, Y, mask).item()
+    PCoeff = PearsonCoeff(pred, Y).item()
     res['PLCC'] = float("{:.3f}".format(PCoeff))
 
-    SCoeff = SpearmanCoeff(pred, Y, mask)
+    SCoeff = SpearmanCoeff(pred, Y)
     res['SRCC'] = float("{:.3f}".format(SCoeff))
 
-    KCoeff = KendallCoeff(pred, Y, mask)
+    KCoeff = KendallCoeff(pred, Y)
     res['KRCC'] = float("{:.3f}".format(KCoeff))
     return res
+
+import matplotlib.pyplot as plt
+def plot(X, Y, mask, figname='tmp'):
+    X = X.squeeze(-1)
+    X = X.detach().cpu().numpy()
+    Y = Y.detach().cpu().numpy()
+    mask = mask.detach().cpu().numpy()
+
+    y = X
+    x = Y
+    for i in set(mask):
+        plt.scatter(x[mask==i],y[mask==i], label='cls'+str(int(i)))
+    plt.xlabel('label')
+    plt.ylabel('prediction')
+
+    PCoeff = scipy.stats.pearsonr(x,y)[0]
+    SCoeff = scipy.stats.spearmanr(x, y).correlation
+    KCoeff = scipy.stats.kendalltau(x, y).correlation
+    plt.legend()
+    plt.title("PLCC={:.3f},SRCC={:.3f},KRCC={:.3f}".format(PCoeff,SCoeff,KCoeff))
+    plt.savefig(figname + '.eps')
+    plt.close()
+
+def plot2(X1, X2, Y, mask, figname='tmp'):
+    X1 = X1.squeeze(-1)
+    X1 = X1.detach().cpu().numpy()
+    X2 = X2.squeeze(-1)
+    X2 = X2.detach().cpu().numpy()
+    Y = Y.detach().cpu().numpy()
+    mask = mask.detach().cpu().numpy()
+    for i in set(mask):
+        x1 = X1[mask==i]
+        x2 = X2[mask==i]
+        y = Y[mask==i]
+        plt.scatter(x1,y,color='r')
+        plt.scatter(x2,y,color='b')
+        plt.xlabel('prediction')
+        plt.ylabel('label')
+        plt.savefig('_'.join([figname,'class'+str(int(i))+'.png']))
+        plt.close()
 
 def save_as_np(pred, Y, mask, pt):
     path = 'STSIM-Mf-local-v1'
@@ -120,13 +142,11 @@ if __name__ == '__main__':
 
     X1, X2, Y, mask, pt = next(iter(test_loader))
 
-
-
     # test with different model
     if config['model'] == 'PSNR':
         tmp = torch.tensor([torch.max(X1[i]) for i in range(X1.shape[0])])
         pred = 10 * torch.log10(tmp * tmp / torch.mean((X1 - X2) ** 2, dim=[1, 2, 3]))
-        print("PSNR test:", evaluation(pred, Y, mask))
+        print("PSNR test:", evaluation(pred, Y))
 
     elif config['model'] == 'STSIM':
         from metrics.STSIM import *
@@ -142,21 +162,24 @@ if __name__ == '__main__':
         path[-1] = 'STSIM-M.pt'
         weight_M = torch.load('/'.join(path))
         pred = m_g.STSIM_M(X1, X2, weight=weight_M)
-        print("STSIM-M test:", evaluation(pred, Y, mask))  #  {'PLCC': 0.874, 'SRCC': 0.834, 'KRCC': 0.73}
-
+        print("STSIM-M test:", evaluation(pred, Y))  #  {'PLCC': 0.874, 'SRCC': 0.834, 'KRCC': 0.73}
+        plot(pred,Y,mask,'STSIM-M_table3')
+        '''
         path = train_config['weights_path'].split('/')
         path[-1] = 'STSIM-I.pt'
         weight_I = torch.load('/'.join(path))
         pred = m_g.STSIM_I(X1, X2, weight=weight_I)
-        print("STSIM-I test:", evaluation(pred, Y, mask))  #  {'PLCC': 0.894, 'SRCC': 0.852, 'KRCC': 0.736}
-
+        print("STSIM-I test:", evaluation(pred, Y))  #  {'PLCC': 0.894, 'SRCC': 0.852, 'KRCC': 0.736}
+        #plot(pred,Y,'STSIM-I')
+        '''
         model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), filter = filter, device = device)
         model.load_state_dict(torch.load(train_config['weights_path']))
         model.to(device).double()
         pred = model(X1, X2)
-        print("STSIM-M (trained) test:", evaluation(pred, Y, mask)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
+        print("STSIM-M (trained) test:", evaluation(pred, Y)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
         save_as_np(pred, Y, mask, pt)
-        import pdb;pdb.set_trace()
+        #plot2(pred_STSIM_2, pred, Y ,mask,'metric_pred')
+
     elif config['model'] == 'DISTS':
         test_loader = torch.utils.data.DataLoader(testset, batch_size=60)
         from metrics.DISTS_pt import *
@@ -176,4 +199,4 @@ if __name__ == '__main__':
         Y = torch.cat(Y, dim=0).detach()
         mask = torch.cat(mask, dim=0).detach()
 
-        print("DISTS test:", evaluation(pred, Y, mask))  # {'PLCC': 0.9574348579861184, 'SRCC': 0.9213941434033467, 'KRCC': 0.8539799877032255}
+        print("DISTS test:", evaluation(pred, Y))  # {'PLCC': 0.9574348579861184, 'SRCC': 0.9213941434033467, 'KRCC': 0.8539799877032255}
