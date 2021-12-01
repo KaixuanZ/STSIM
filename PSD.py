@@ -13,7 +13,7 @@ from metrics.STSIM import *
 import torch
 from scipy.stats import wasserstein_distance
 
-def _GetPSD1D(psd2D, average=False):
+def _GetPSD1D(psd2D, average=True):
     h  = psd2D.shape[0]
     w  = psd2D.shape[1]
     wc = w//2
@@ -53,14 +53,15 @@ def main(img_path1, img_path2, label, psd1d_o, viz=True, prefix=""):
     fg = img1 - img2
     #fg = fg[h:h + size, w:w + size]
     t = min(-fg.min(), fg.max())
+    t = 14
     cv2.imwrite('_'.join([prefix,'tmp.png']), (fg+t)*255/2/t)
 
-    fg = fg-fg.mean()
     psd1d_fg = GetPSD1D(fg)
+    psd1d_fg[0] = 0 #remove DC
     # Gaussian = np.random.normal(0, (fg ** 2).mean() ** 0.5, fg.shape)
     # psd1d_Gaussian = GetPSD1D(Gaussian)
     if viz:
-        k = 0
+        k = 1
         plt.plot(range(k,psd1d_fg.size), psd1d_fg[k:], label=label)
         plt.plot(range(k,psd1d_o.size), psd1d_o[k:], label='original film grain')
         # plt.plot(range(k,psd1d_Gaussian.size), psd1d_Gaussian[k:], label='Gaussian')
@@ -75,6 +76,7 @@ def main(img_path1, img_path2, label, psd1d_o, viz=True, prefix=""):
         plt.plot(range(k, tmp.size), tmp[k:], label=label)
         plt.savefig('_'.join([prefix,'tmp2.png']))
         plt.close()
+
     return psd1d_fg
 
 def main1(img_path1, label, psd1d_o, viz=True):
@@ -92,7 +94,7 @@ def main1(img_path1, label, psd1d_o, viz=True):
     # Gaussian = np.random.normal(0, (fg ** 2).mean() ** 0.5, fg.shape)
     # psd1d_Gaussian = GetPSD1D(Gaussian)
     if viz:
-        k = 0
+        k = 1
         plt.plot(range(k,psd1d_fg.size), psd1d_fg[k:], label=label)
         plt.plot(range(k,psd1d_o.size), psd1d_o[k:], label='original film grain')
         # plt.plot(range(k,psd1d_Gaussian.size), psd1d_Gaussian[k:], label='Gaussian')
@@ -115,7 +117,7 @@ def Wasserstein_dis(psd1, psd2, viz=True, figname='tmp1.png', normalize=True, ST
         w_dis = wasserstein_distance(psd1, psd2)
 
     if viz:
-        k = 0
+        k =1
         plt.plot(range(k,psd1.size), psd1[k:], label='original')
         plt.plot(range(k,psd2.size), psd2[k:], label='synthesized')
         plt.legend()
@@ -124,15 +126,21 @@ def Wasserstein_dis(psd1, psd2, viz=True, figname='tmp1.png', normalize=True, ST
         else:
             plt.title('w_dist={:0.4f}, STSIM-Mf={:0.4f}'.format(w_dis,STSIM_Mf))
         #plt.show()
+        plt.yscale('log')
         plt.savefig(figname)
         plt.close()
     return w_dis
 
 
-img_o = '/Data/DareDevil/denoised/frame_00300.png'
-img_den = '/Data/DareDevil/original/frame_00300.png'
+img_o = '/dataset/NetflixData2021/three_kingdoms_theatrical_rele/original/frame_00001.png'
+img_den = '/dataset/NetflixData2021/three_kingdoms_theatrical_rele/denoised/frame_00001.png'
 psd1d_o = main(img_o, img_den, 'original film grain', psd1d_o=None, viz=False)
 
+img_ren = '/dataset/NetflixData2021/three_kingdoms_theatrical_rele/renoised/frame_00001.png'
+img_dec = '/dataset/NetflixData2021/three_kingdoms_theatrical_rele/decoded/frame_00001.png'
+psd1d_syn = main(img_ren, img_dec, 'synthesized film grain', psd1d_o=None, viz=False)
+
+Wasserstein_dis(psd1d_o, psd1d_syn)
 #fg = '/Data/DareDevil/synthesized_H&B/frame_00300.png'
 # fg = '/Data/DareDevil/synthesized_H&B/fg_synthesized_scaled.png'
 # psd1d_syn_HB = main1(fg, 'synthesized film grain H&B', psd1d_o)
@@ -160,9 +168,9 @@ psd1d_o = main(img_o, img_den, 'original film grain', psd1d_o=None, viz=False)
 # img_ren = '/Data/DareDevil/renoised_04/frame_00300.png'
 # psd1d_syn4 = main(img_dec, img_ren, 'synthesized film grain', psd1d_o=psd1d_o, prefix='tmp/syn4')
 
-img_dec = '/Data/DareDevil/decoded/frame_00300.png'
-img_ren = '/Data/DareDevil/renoised_default_ps64/frame_00300.png'
-psd1d_syn5 = main(img_dec, img_ren, 'synthesized film grain', psd1d_o=psd1d_o, prefix='tmp/syn5')
+# img_dec = '/Data/DareDevil/decoded/frame_00300.png'
+# img_ren = '/Data/DareDevil/renoised_default_ps64/frame_00300.png'
+# psd1d_syn5 = main(img_dec, img_ren, 'synthesized film grain', psd1d_o=psd1d_o, prefix='tmp/syn5')
 
 # print(Wasserstein_dis(psd1d_o, psd1d_syn0, figname='tmp1.png', STSIM_Mf=0.1678))
 # print(Wasserstein_dis(psd1d_o, psd1d_syn1, figname='tmp2.png', STSIM_Mf=0.2503))
