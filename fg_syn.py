@@ -106,7 +106,7 @@ def STSIM_features(fg, metric, mask=None):
 def pyr_params(fg, mask=None):
     if mask is None:
         # subband params
-        pyr = pt.pyramids.SteerablePyramidSpace(fg, height=3, order=3)  # 3+2 scales, 3 orientations
+        pyr = pt.pyramids.SteerablePyramidSpace(fg, height=3, order=3)  # 3+2 scales, 4 orientations
         params = {}
         print('estimating subband parameters')
         params['original'] = gennorm.fit(fg.ravel())
@@ -114,7 +114,7 @@ def pyr_params(fg, mask=None):
             params[key] = gennorm.fit(pyr.pyr_coeffs[key].ravel())
     else:
         # subband params
-        pyr = pt.pyramids.SteerablePyramidSpace(fg, height=3, order=3)  # 3+2 scales, 3 orientations
+        pyr = pt.pyramids.SteerablePyramidSpace(fg, height=3, order=3)  # 3+2 scales, 4 orientations
         params = {}
         print('estimating subband parameters')
         params['original'] = gennorm.fit(fg[mask].ravel())
@@ -124,7 +124,7 @@ def pyr_params(fg, mask=None):
             params[key] = gennorm.fit(pyr.pyr_coeffs[key][mask1].ravel())
     return params
 
-def fg_synthesize(fg, size, iter, output_dir):
+def fg_synthesize(fg, size, mask, iter, output_dir):
     m = Metric('SF', device)
 
     # STSIM features based on mask
@@ -132,9 +132,8 @@ def fg_synthesize(fg, size, iter, output_dir):
     feature_fg = STSIM_features(fg, m)
 
     print('computing subbands statistics')
-    params = pyr_params(fg)
+    params = pyr_params(fg, mask)
 
-    t1 = time.time()
     # synthesize a patch of film grain (size * size)
     print('synthesizing film grain noise')
     fg_syn = min_STSIM(feature_fg, params, output_dir=output_dir, size=(1, 1, 2 * size, 2 * size), iter=iter)
@@ -142,14 +141,14 @@ def fg_synthesize(fg, size, iter, output_dir):
     return fg_syn
 
 if __name__ == '__main__':
-    original = 'data/DareDevil/original/frame_00300.png'
-    denoised = 'data/DareDevil/denoised/frame_00300.png'
+    original = 'data/brooklyn_nine_nine/original/frame_00001.png'
+    denoised = 'data/brooklyn_nine_nine/denoised/frame_00001.png'
     output_dir = 'data/res'
     h, w = 350, 1150
     size = 128
 
     color = 0
-    iter = 11
+    iter = 0
     if color==1:
         img_o, img_den, fg = data_loader(original, denoised, color)
         fg_patch = fg[h:h + size, w:w + size]
@@ -163,17 +162,15 @@ if __name__ == '__main__':
 
     elif color==0:
         img_o, img_den, fg = data_loader(original, denoised, color)
+        import pdb;
+        pdb.set_trace()
+        # fg_patch = fg[h:h+size, w:w+size]
 
-        fg_patch = fg[h:h+size, w:w+size]
-
-        '''
-        # mask of flat region
-        edges = cv2.Canny(img_den.astype(np.uint8), 50, 100)
-        kernel = np.ones((5,5), np.uint8)
-        mask = cv2.dilate(edges, kernel, iterations=1)
-        mask = ~mask.astype(bool)
-        '''
-
+        # mask of non-flat noise region
+        kernel = np.ones((5, 5)) / 5 / 5
+        fg_mean = cv2.filter2D(fg, -1, kernel)
+        fg_var = cv2.filter2D(fg_mean ** 2, -1, kernel)
+        mask = fg_var > fg_var.mean() * 0.7
         '''
         from matplotlib import pyplot as plt
         plt.imshow(mask, cmap='gray')
@@ -187,7 +184,7 @@ if __name__ == '__main__':
         #    LUT[value] = fg[(img_den==value)&mask].std()
         t1 = time.time()
 
-        res = fg_synthesize(fg_patch, size, iter, output_dir)
+        res = fg_synthesize(fg, size, mask, iter, output_dir)
 
         t2 = time.time()
         print('time for synthesize:', t2-t1)
@@ -200,9 +197,10 @@ if __name__ == '__main__':
         #cv2.imwrite('tmp2.png', (res - fg.min())/(fg.max()-fg.min())*255)
 
     #DareDevil
-    cv2.imwrite(os.path.join(output_dir,'fg_patch.png'), (fg_patch - fg.min()) / (-fg.min() * 2) * 255)
-    cv2.imwrite(os.path.join(output_dir,'fg_frame.png'), (fg - fg.min())/(-fg.min()*2)*255)
-    cv2.imwrite(os.path.join(output_dir,'fg_synthesized.png'), (res - fg.min())/(-fg.min()*2)*255)
+    # t = 14
+    t = 6
+    cv2.imwrite(os.path.join(output_dir,'fg_frame.png'), (fg + t)/2/t*255)
+    cv2.imwrite(os.path.join(output_dir,'fg_synthesized.png'), (res + t)/2/t*255)
 
 
     # mask of flat region
@@ -212,15 +210,14 @@ if __name__ == '__main__':
     mask = ~mask.astype(bool)
 
     # look up table
-    # LUT = {}
-    # for value in set(img_den[mask].ravel()):
-    #     LUT[value] = fg[(img_den == value) & mask].std()
+    LUT = {}
+    for value in set(img_den[mask].ravel()):
+        LUT[value] = fg[(img_den == value) & mask].std()
     for value in set(img_den[mask].ravel()):
         res[img_den==value] = res[img_den==value]*fg[(img_den==value)&mask].std()/res[(img_den==value)&mask].std()
 
 
-    cv2.imwrite(os.path.join(output_dir,'fg_synthesized_scaled.png'), (res - fg.min())/(-fg.min()*2)*255)
+    cv2.imwrite(os.path.join(output_dir,'fg_synthesized_scaled.png'), (res + t)/t/2*255)
 
 
     import pdb;pdb.set_trace()
-
