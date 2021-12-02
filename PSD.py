@@ -52,15 +52,17 @@ def main(img_path1, img_path2, label, psd1d_o, viz=True, prefix=""):
 
     fg = img1 - img2
     #fg = fg[h:h + size, w:w + size]
+
     fg = fg[:900, -900:]
     cv2.imwrite('_'.join([prefix,'tmp.png']), (fg+t)*255/2/t)
 
     psd1d_fg = GetPSD1D(fg)
     psd1d_fg[0] = 0
+
     # Gaussian = np.random.normal(0, (fg ** 2).mean() ** 0.5, fg.shape)
     # psd1d_Gaussian = GetPSD1D(Gaussian)
     if viz:
-        k = 0
+        k = 1
         plt.plot(range(k,psd1d_fg.size), psd1d_fg[k:], label=label)
         plt.plot(range(k,psd1d_o.size), psd1d_o[k:], label='original film grain')
         # plt.plot(range(k,psd1d_Gaussian.size), psd1d_Gaussian[k:], label='Gaussian')
@@ -75,6 +77,7 @@ def main(img_path1, img_path2, label, psd1d_o, viz=True, prefix=""):
         plt.plot(range(k, tmp.size), tmp[k:], label=label)
         plt.savefig('_'.join([prefix,'tmp2.png']))
         plt.close()
+
     return psd1d_fg
 
 def main1(img_path1, label, psd1d_o, viz=True):
@@ -92,7 +95,7 @@ def main1(img_path1, label, psd1d_o, viz=True):
     # Gaussian = np.random.normal(0, (fg ** 2).mean() ** 0.5, fg.shape)
     # psd1d_Gaussian = GetPSD1D(Gaussian)
     if viz:
-        k = 0
+        k = 1
         plt.plot(range(k,psd1d_fg.size), psd1d_fg[k:], label=label)
         plt.plot(range(k,psd1d_o.size), psd1d_o[k:], label='original film grain')
         # plt.plot(range(k,psd1d_Gaussian.size), psd1d_Gaussian[k:], label='Gaussian')
@@ -116,6 +119,7 @@ def Wasserstein_dis(psd1, psd2, viz=True, figname='tmp1.png', normalize=True, ST
 
     if viz:
         k = 1
+
         plt.plot(range(k,psd1.size), psd1[k:], label='original')
         plt.plot(range(k,psd2.size), psd2[k:], label='synthesized')
         plt.legend()
@@ -163,3 +167,4 @@ psd1d_syn_HB = main1(fg, 'H&B synthesized film grain', psd1d_o, viz=False)
 
 # print(Wasserstein_dis(psd1d_o, psd1d_syn_HB, figname='tmp1.png', STSIM_Mf=None))
 plot_psds(psd1d_o, psd1d_syn_av1, psd1d_syn_HB, figname='tmp1.png')
+
