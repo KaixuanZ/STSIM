@@ -29,8 +29,8 @@ def moving_average(loss):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="config/train_STSIM.cfg", help="path to data config file")
-    # parser.add_argument("--config", type=str, default="config/train_DISTS.cfg", help="path to data config file")
+    # parser.add_argument("--config", type=str, default="config/train_STSIM_global.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/train_DISTS_global.cfg", help="path to data config file")
 
     opt = parser.parse_args()
     print(opt)
@@ -57,10 +57,11 @@ if __name__ == '__main__':
     valid_loader = torch.utils.data.DataLoader(validset, batch_size=valid_batch_size, shuffle=shuffle)
 
     # read test data
-    dist = config['test']
-    test_batch_size = int(config['test_batch_size'])
-    testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
-    test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size, shuffle=shuffle)
+    if config['model'] == 'STSIM':
+        dist = config['test']
+        test_batch_size = int(config['test_batch_size'])
+        testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
+        test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size, shuffle=shuffle)
 
     epochs = int(config['epochs'])
     evaluation_interval = int(config['evaluation_interval'])
@@ -109,7 +110,8 @@ if __name__ == '__main__':
             if loss_type == 'MSE':
                 loss = torch.mean((pred - Y_train) ** 2)
             elif loss_type == 'Coeff':
-                loss = -PearsonCoeff(pred, Y_train)  - 0.05*F.relu(- pred[pt_train==1].mean() + pred[pt_train==0].mean()) # min neg ==> max
+                # loss = -PearsonCoeff(pred, Y_train)  - 0.05*F.relu(- pred[pt_train==1].mean() + pred[pt_train==0].mean()) # min neg ==> max
+                loss = -PearsonCoeff(pred, Y_train) # min neg ==> max
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -150,7 +152,7 @@ if __name__ == '__main__':
         # train
         for i in range(epochs):
             running_loss = []
-            for X1_train, X2_train, Y_train, mask_train in train_loader:
+            for X1_train, X2_train, Y_train, _, _ in train_loader:
                 X1_train = F.interpolate(X1_train, size=256).float().to(device)
                 X2_train = F.interpolate(X2_train, size=256).float().to(device)
                 Y_train = Y_train.to(device)
@@ -159,7 +161,7 @@ if __name__ == '__main__':
                 if loss_type == 'MSE':
                     loss = torch.mean((pred - Y_train) ** 2)
                 elif loss_type == 'Coeff':
-                    loss = -PearsonCoeff(pred, Y_train, mask_train)  # min neg ==> max
+                    loss = -PearsonCoeff(pred, Y_train)  # min neg ==> max
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -171,7 +173,7 @@ if __name__ == '__main__':
 
             if i % evaluation_interval == 0:  # validation
                 running_loss = []
-                for X1_valid, X2_valid, Y_valid, mask_valid in valid_loader:
+                for X1_valid, X2_valid, Y_valid, _, _ in valid_loader:
                     X1_valid = F.interpolate(X1_valid, size=256).float().to(device)
                     X2_valid = F.interpolate(X2_valid, size=256).float().to(device)
                     Y_valid = Y_valid.to(device)
@@ -179,7 +181,7 @@ if __name__ == '__main__':
                     if loss_type == 'MSE':
                         loss = torch.mean((pred - Y_valid) ** 2)
                     elif loss_type == 'Coeff':
-                        loss = -PearsonCoeff(pred, Y_valid, mask_valid)  # min neg ==> max
+                        loss = -PearsonCoeff(pred, Y_valid)  # min neg ==> max
                     running_loss.append(loss.item())
                 writer.add_scalar('Loss/valid', np.mean(running_loss), i)
                 print('validation iter ' + str(i) + ' :', np.mean(running_loss))

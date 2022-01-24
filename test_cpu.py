@@ -83,7 +83,7 @@ def evaluation(pred, Y, mask):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="config/test.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/test_STSIM_global.cfg", help="path to data config file")
     parser.add_argument("--batch_size", type=int, default=4080, help="size of each image batch")
     opt = parser.parse_args()
     print(opt)
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # read data
-    dataset_dir = 'concatenated' #config['dataset_dir']
+    dataset_dir = config['dataset_dir'] #'concatenated'
     label_file = config['label_file']
     dist = config['dist']
     testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
@@ -132,18 +132,12 @@ if __name__ == '__main__':
     X1 = np.array_split(X1,X1.shape[0])
     X2 = np.array_split(X2,X2.shape[0])
 
-    stsim_vgg = Parallel(n_jobs=6)(delayed(STSIM_VGG)(X1[i],X2[i]) for i in tqdm(range(len(X1))))
-
-    print("STSIM-VGG test:", evaluation(np.array(stsim_vgg), Y, mask))
-    import pdb;
-    pdb.set_trace()
+    # stsim_vgg = Parallel(n_jobs=6)(delayed(STSIM_VGG)(X1[i],X2[i]) for i in tqdm(range(len(X1))))
+    # print("STSIM-VGG test:", evaluation(np.array(stsim_vgg), Y, mask))
+    # import pdb;pdb.set_trace()
 
     stsim1 = Parallel(n_jobs=-1)(delayed(STSIM1)(X1[i],X2[i]) for i in tqdm(range(len(X1))))
     stsim2 = Parallel(n_jobs=-1)(delayed(STSIM2)(X1[i],X2[i]) for i in tqdm(range(len(X1))))
-    
-    for i in tqdm(range(X1.shape[0])):
-        stsim1.append(m.STSIM(X1[i], X2[i]))
-        stsim2.append(m.STSIM2(X1[i], X2[i]))
     
     print("STSIM-1 test:", evaluation(np.array(stsim1), Y, mask))
 

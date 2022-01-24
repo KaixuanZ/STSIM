@@ -118,7 +118,7 @@ def save_as_np(pred, Y, mask, pt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="config/test.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/test_STSIM_global.cfg", help="path to data config file")
     parser.add_argument("--batch_size", type=int, default=4080, help="size of each image batch")
     opt = parser.parse_args()
     print(opt)
@@ -153,7 +153,6 @@ if __name__ == '__main__':
         X1 = X1.to(device).double()
         X2 = X2.to(device).double()
         Y = Y.to(device).double()
-        mask = mask.to(device).double()
 
         filter = train_config['filter']
         m_g = Metric(filter, device=device)
@@ -186,14 +185,12 @@ if __name__ == '__main__':
 
         model = DISTS(weights_path=config['weights_path']).to(device)
         pred, Y, mask = [], [], []
-        for X1_test, X2_test, Y_test, mask_test in test_loader:
+        for X1_test, X2_test, Y_test, _, _ in test_loader:
             X1_test = F.interpolate(X1_test, size=256).float().to(device)
             X2_test = F.interpolate(X2_test, size=256).float().to(device)
             Y_test = Y_test.to(device)
-            mask_test = mask_test.to(device)
             pred.append(model(X1_test, X2_test))
             Y.append(Y_test)
-            mask.append(mask_test)
             #import pdb;pdb.set_trace()
         pred = torch.cat(pred, dim=0).detach()
         Y = torch.cat(Y, dim=0).detach()
