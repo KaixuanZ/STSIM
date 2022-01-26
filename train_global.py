@@ -13,7 +13,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from torch.utils.tensorboard import SummaryWriter
-
+from tqdm import tqdm
 
 def moving_average(loss):
     '''
@@ -29,8 +29,8 @@ def moving_average(loss):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--config", type=str, default="config/train_STSIM_global.cfg", help="path to data config file")
-    parser.add_argument("--config", type=str, default="config/train_DISTS_global.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/train_STSIM_global.cfg", help="path to data config file")
+    # parser.add_argument("--config", type=str, default="config/train_DISTS_global.cfg", help="path to data config file")
 
     opt = parser.parse_args()
     print(opt)
@@ -71,32 +71,52 @@ if __name__ == '__main__':
 
     # model, STSIM or DISTS
     if config['model'] == 'STSIM':
-        # prepare data
-        X1_train, X2_train, Y_train, _, pt_train = next(iter(train_loader))
-        X1_valid, X2_valid, Y_valid, _, pt_valid = next(iter(valid_loader))
-        X1_test, X2_test, Y_test, _, pt_test = next(iter(test_loader))
-
         from metrics.STSIM import *
-
         m = Metric(config['filter'], device)
-        # STSIM-M features
-        X1_train = m.STSIM(X1_train.double().to(device))
-        X2_train = m.STSIM(X2_train.double().to(device))
-        X1_valid = m.STSIM(X1_valid.double().to(device))
-        X2_valid = m.STSIM(X2_valid.double().to(device))
-        Y_train = Y_train.to(device)
-        Y_valid = Y_valid.to(device)
+        # prepare data
+        if config['filter'] == 'VGG':
+            def load_data(dataloader):
+                X1, X2, Y = [], [], []
+                for x1, x2, y, _, _ in tqdm(train_loader):
+                    x1 = F.interpolate(x1, size=256).double().to(device)
+                    x2 = F.interpolate(x2, size=256).double().to(device)
+                    y = y.to(device)
+                    X1.append(m.STSIM(x1))
+                    X2.append(m.STSIM(x2))
+                    Y.append(y)
+                X1 = torch.cat(X1, dim=0)
+                X2 = torch.cat(X2, dim=0)
+                Y = torch.cat(Y, dim=0)
+                return X1, X2, Y
+            X1_train, X2_train, Y_train = load_data(train_loader)
+            X1_valid, X2_valid, Y_valid = load_data(valid_loader)
+            X1_test, X2_test, Y_test = load_data(test_loader)
+        else:
+            print('generating training set')
+            X1_train, X2_train, Y_train, _, pt_train = next(iter(train_loader))
+            print('generating validation set')
+            X1_valid, X2_valid, Y_valid, _, pt_valid = next(iter(valid_loader))
+            print('generating test set')
+            X1_test, X2_test, Y_test, _, pt_test = next(iter(test_loader))
 
-        # collect all data and estimate STSIM-M and STSIM-I
-        X1 = torch.cat((X1_train, X1_valid))
-        X_train = [X1]
-        X_train.append(X2_train)
-        X_train.append(X2_valid)
-        X_train = torch.cat(X_train)
+            # STSIM-M features
+            X1_train = m.STSIM(X1_train.double().to(device))
+            X2_train = m.STSIM(X2_train.double().to(device))
+            X1_valid = m.STSIM(X1_valid.double().to(device))
+            X2_valid = m.STSIM(X2_valid.double().to(device))
+            Y_train = Y_train.to(device)
+            Y_valid = Y_valid.to(device)
 
-        # STSIM-M
-        weight_M = m.STSIM_M(X_train)
-        torch.save(weight_M, os.path.join(config['weights_folder'], 'STSIM-M.pt'))
+            # collect all data and estimate STSIM-M and STSIM-I
+            X1 = torch.cat((X1_train, X1_valid))
+            X_train = [X1]
+            X_train.append(X2_train)
+            X_train.append(X2_valid)
+            X_train = torch.cat(X_train)
+
+            # STSIM-M
+            weight_M = m.STSIM_M(X_train)
+            torch.save(weight_M, os.path.join(config['weights_folder'], 'STSIM-M.pt'))
 
         mode = int(config['mode'])
         # learnable parameters
@@ -125,7 +145,7 @@ if __name__ == '__main__':
             if i % checkpoint_interval == 0:  # save weights
                 torch.save(model.state_dict(),
                            os.path.join(config['weights_folder'], 'epoch_' + str(i).zfill(4) + '.pt'))
-
+        # import pdb;pdb.set_trace()
         idx = valid_perform.index(max(valid_perform))
         print('best model')
         print('epoch:', idx * evaluation_interval)
@@ -134,9 +154,10 @@ if __name__ == '__main__':
                                               'epoch_' + str(idx * evaluation_interval).zfill(4) + '.pt')
 
         model.load_state_dict(torch.load(config['weights_path']))
-        X1_test = m.STSIM(X1_test.double().to(device))
-        X2_test = m.STSIM(X2_test.double().to(device))
-        Y_test = Y_test.to(device)
+        if config['filter'] != 'VGG':
+            X1_test = m.STSIM(X1_test.double().to(device))
+            X2_test = m.STSIM(X2_test.double().to(device))
+            Y_test = Y_test.to(device)
         pred = model(X1_test, X2_test)
         test = evaluation(pred, Y_test)
         print('performance on test set:', test)

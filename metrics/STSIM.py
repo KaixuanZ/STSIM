@@ -7,6 +7,7 @@ import torch.nn.functional as F
 
 import sys
 sys.path.append('..')
+from filterbank.VGG import VGG
 from filterbank.Spyr_PyTorch import Spyr_PyTorch
 from filterbank.SCFpyr_PyTorch import SCFpyr_PyTorch
 from filterbank.DCT import DCT
@@ -41,6 +42,9 @@ class Metric:
 			self.fb = SCFpyr_PyTorch(height=self.height, nbands=self.nbands, sub_sample = sub_sample, device = self.device)
 		elif self.filter == 'DCT':
 			self.fb = DCT(device = self.device)
+		elif self.filter == 'VGG':
+			self.fb = VGG().to(self.device).double()
+
 
 	def _STSIM_with_mask(self, img, mask):
 		'''
@@ -210,6 +214,9 @@ class Metric:
 			return self._STSIM(img)
 		if mask is not None:
 			return self._STSIM_with_mask(img, mask)
+		if self.filter=='VGG':
+			img = F.interpolate(img, size=256).to(self.device)
+
 		coeffs = self.fb.build(img)
 		if self.filter == 'SCF':	# magnitude of coeff
 			for i in range(1,4):
@@ -226,6 +233,7 @@ class Metric:
 
 		f = []
 		# single subband statistics
+
 		for c in self.fb.getlist(coeffs):
 			mean = torch.mean(c, dim = [1,2,3])
 			var = torch.var(c, dim = [1,2,3])
@@ -235,7 +243,8 @@ class Metric:
 			c = c - mean.reshape([-1,1,1,1])
 			f.append(torch.mean(c[:, :, :-1, :] * c[:, :, 1:, :], dim=[1, 2, 3]) / (var + self.C))
 			f.append(torch.mean(c[:, :, :, :-1] * c[:, :, :, 1:], dim=[1, 2, 3]) / (var + self.C))
-
+		if self.filter == 'VGG':
+			return torch.stack(f).T
 		# correlation statistics
 		# across orientations
 		for orients in coeffs[1:-1]:
