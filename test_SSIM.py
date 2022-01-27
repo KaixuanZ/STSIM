@@ -109,8 +109,8 @@ if __name__ == '__main__':
     # read data
     dataset_dir = config['dataset_dir']
     label_file = config['label_file']
-    dist_img_folder = config['dist_img_folder']
-    testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist_folder=dist_img_folder)
+    dist_img_folder = config['dist']
+    testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist_img_folder)
     test_loader = torch.utils.data.DataLoader(testset, batch_size=opt.batch_size)
 
     # read train config
@@ -119,12 +119,13 @@ if __name__ == '__main__':
         train_config = json.load(f)
         print(train_config)
 
-    X1, X2, Y, mask = next(iter(test_loader))
+    X1, X2, Y, mask, _ = next(iter(test_loader))
 
     X1 = X1.to(device).double()
     X2 = X2.to(device).double()
     Y = Y.to(device).double()
     mask = mask.to(device).double()
+    mask = mask*0   #global testing
 
     from metrics.SSIM import ssim
     pred = ssim(X1,X2)
