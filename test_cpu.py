@@ -1,7 +1,7 @@
 import argparse
 import numpy as np
 from utils.dataset import Dataset
-from utils.dataset_concatenated import Dataset
+# from utils.dataset_concatenated import Dataset
 from utils.parse_config import parse_config
 
 import torch
@@ -105,7 +105,7 @@ if __name__ == '__main__':
         train_config = json.load(f)
         print(train_config)
 
-    X1, X2, Y, mask = next(iter(test_loader))
+    X1, X2, Y, mask, _ = next(iter(test_loader))
 
 
     from metrics_cpu.metric import Metric
@@ -114,6 +114,7 @@ if __name__ == '__main__':
     X2 = X2.squeeze(1).numpy()
     Y = Y.numpy()
     mask = mask.numpy()
+    mask = mask*0   #global testing
 
     m = Metric()
 
@@ -133,14 +134,13 @@ if __name__ == '__main__':
     X2 = np.array_split(X2,X2.shape[0])
 
     # stsim_vgg = Parallel(n_jobs=6)(delayed(STSIM_VGG)(X1[i],X2[i]) for i in tqdm(range(len(X1))))
-    # print("STSIM-VGG test:", evaluation(np.array(stsim_vgg), Y, mask))
+    # pred = np.array(stsim_vgg)
+    # print("STSIM-VGG test:", evaluation(pred, Y, mask))
     # import pdb;pdb.set_trace()
 
     stsim1 = Parallel(n_jobs=-1)(delayed(STSIM1)(X1[i],X2[i]) for i in tqdm(range(len(X1))))
     stsim2 = Parallel(n_jobs=-1)(delayed(STSIM2)(X1[i],X2[i]) for i in tqdm(range(len(X1))))
-    
     print("STSIM-1 test:", evaluation(np.array(stsim1), Y, mask))
-
     print("STSIM-2 test:", evaluation(np.array(stsim2), Y, mask))
     import pdb;
     pdb.set_trace()
