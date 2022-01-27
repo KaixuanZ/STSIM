@@ -108,16 +108,16 @@ def plot2(X1, X2, Y, mask, figname='tmp'):
         plt.savefig('_'.join([figname,'class'+str(int(i))+'.png']))
         plt.close()
 
-def save_as_np(pred, Y, mask, pt):
-    path = 'STSIM-Mf-local-v1'
+def save_as_np(pred, Y):
+    path = 'STSIM-M-global'
     # os.mkdir(path)
-    np.save(os.path.join(path,'pred_Mf.npy'), pred.detach().cpu().numpy())
+    np.save(os.path.join(path,'pred_M.npy'), pred.detach().cpu().numpy())
     np.save(os.path.join(path,'label.npy'), Y.detach().cpu().numpy())    # label
-    np.save(os.path.join(path,'mask.npy'), mask.detach().cpu().numpy())  # class
-    np.save(os.path.join(path,'pt.npy'), pt.detach().cpu().numpy())  # perceptual threshold
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    # parser.add_argument("--config", type=str, default="config/test_DISTS_global.cfg", help="path to data config file")
     parser.add_argument("--config", type=str, default="config/test_STSIM_global.cfg", help="path to data config file")
     parser.add_argument("--batch_size", type=int, default=4080, help="size of each image batch")
     opt = parser.parse_args()
@@ -157,26 +157,34 @@ if __name__ == '__main__':
         filter = train_config['filter']
         m_g = Metric(filter, device=device)
 
+        # pred = m_g.STSIM1(X1, X2)
+        # print("STSIM-1 test:", evaluation(pred, Y))
+        #
+        # pred = m_g.STSIM2(X1, X2)
+        # print("STSIM-2 test:", evaluation(pred, Y))
+
         path = train_config['weights_path'].split('/')
         path[-1] = 'STSIM-M.pt'
         weight_M = torch.load('/'.join(path))
         pred = m_g.STSIM_M(X1, X2, weight=weight_M)
         print("STSIM-M test:", evaluation(pred, Y))  #  {'PLCC': 0.874, 'SRCC': 0.834, 'KRCC': 0.73}
-        plot(pred,Y,mask,'STSIM-M_table3')
-        '''
+        save_as_np(pred, Y)
+        # plot(pred,Y,mask,'STSIM-M_table3')
+
         path = train_config['weights_path'].split('/')
         path[-1] = 'STSIM-I.pt'
         weight_I = torch.load('/'.join(path))
         pred = m_g.STSIM_I(X1, X2, weight=weight_I)
         print("STSIM-I test:", evaluation(pred, Y))  #  {'PLCC': 0.894, 'SRCC': 0.852, 'KRCC': 0.736}
         #plot(pred,Y,'STSIM-I')
-        '''
+
         model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), filter = filter, device = device)
         model.load_state_dict(torch.load(train_config['weights_path']))
         model.to(device).double()
         pred = model(X1, X2)
         print("STSIM-M (trained) test:", evaluation(pred, Y)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
-        save_as_np(pred, Y, mask, pt)
+        #import pdb;pdb.set_trace()
+        # save_as_np(pred, Y)
         #plot2(pred_STSIM_2, pred, Y ,mask,'metric_pred')
 
     elif config['model'] == 'DISTS':
@@ -191,9 +199,7 @@ if __name__ == '__main__':
             Y_test = Y_test.to(device)
             pred.append(model(X1_test, X2_test))
             Y.append(Y_test)
-            #import pdb;pdb.set_trace()
         pred = torch.cat(pred, dim=0).detach()
         Y = torch.cat(Y, dim=0).detach()
-        mask = torch.cat(mask, dim=0).detach()
 
         print("DISTS test:", evaluation(pred, Y))  # {'PLCC': 0.9574348579861184, 'SRCC': 0.9213941434033467, 'KRCC': 0.8539799877032255}

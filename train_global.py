@@ -93,9 +93,9 @@ if __name__ == '__main__':
             X1_test, X2_test, Y_test = load_data(test_loader)
         else:
             print('generating training set')
-            X1_train, X2_train, Y_train, _, pt_train = next(iter(train_loader))
+            X1_train, X2_train, Y_train, mask_train, pt_train = next(iter(train_loader))
             print('generating validation set')
-            X1_valid, X2_valid, Y_valid, _, pt_valid = next(iter(valid_loader))
+            X1_valid, X2_valid, Y_valid, mask_valid, pt_valid = next(iter(valid_loader))
             print('generating test set')
             X1_test, X2_test, Y_test, _, pt_test = next(iter(test_loader))
 
@@ -109,14 +109,22 @@ if __name__ == '__main__':
 
             # collect all data and estimate STSIM-M and STSIM-I
             X1 = torch.cat((X1_train, X1_valid))
-            X_train = [X1]
+            mask = torch.cat((mask_train, mask_valid))
+            X_train = [X1[mask == i][0:1] for i in set(mask.detach().cpu().numpy())]
+            mask_I = [mask[mask == i][0:1] for i in set(mask.detach().cpu().numpy())]
             X_train.append(X2_train)
             X_train.append(X2_valid)
+            mask_I.append(mask_train)
+            mask_I.append(mask_valid)
             X_train = torch.cat(X_train)
+            mask_I = torch.cat(mask_I)
 
             # STSIM-M
             weight_M = m.STSIM_M(X_train)
             torch.save(weight_M, os.path.join(config['weights_folder'], 'STSIM-M.pt'))
+            # STSIM-I
+            weight_I = m.STSIM_I(X_train, mask=mask_I)
+            torch.save(weight_I, os.path.join(config['weights_folder'], 'STSIM-I.pt'))
 
         mode = int(config['mode'])
         # learnable parameters
