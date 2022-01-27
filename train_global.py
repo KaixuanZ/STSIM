@@ -77,7 +77,7 @@ if __name__ == '__main__':
         if config['filter'] == 'VGG':
             def load_data(dataloader):
                 X1, X2, Y = [], [], []
-                for x1, x2, y, _, _ in tqdm(train_loader):
+                for x1, x2, y, _, _ in tqdm(dataloader):
                     x1 = F.interpolate(x1, size=256).double().to(device)
                     x2 = F.interpolate(x2, size=256).double().to(device)
                     y = y.to(device)
