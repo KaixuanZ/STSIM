@@ -45,6 +45,151 @@ class Metric:
 		elif self.filter == 'VGG':
 			self.fb = VGG().to(self.device).double()
 
+	def STSIM1(self, img1, img2, sub_sample=True):
+		assert img1.shape == img2.shape
+		assert len(img1.shape) == 4  # [N,C,H,W]
+		assert img1.shape[1] == 1	# gray image
+
+		pyrA = self.fb.getlist(self.fb.build(img1))
+		pyrB = self.fb.getlist(self.fb.build(img2))
+
+		stsim = map(self.pooling, pyrA, pyrB)
+
+		return torch.mean(torch.stack(list(stsim)), dim=0).T # [BatchSize, FeatureSize]
+
+	def STSIM2(self, img1, img2, sub_sample=True):
+		assert img1.shape == img2.shape
+
+		pyrA = self.fb.build(img1)
+		pyrB = self.fb.build(img2)
+		stsimg2 = list(map(self.pooling, self.fb.getlist(pyrA), self.fb.getlist(pyrB)))
+
+		Nor = len(pyrA[1])
+
+		# Accross scale, same orientation
+		for scale in range(2, len(pyrA) - 1):
+			for orient in range(Nor):
+				img11 = pyrA[scale - 1][orient]
+				img12 = pyrA[scale][orient]
+				img11 = F.interpolate(img11, size=img12.shape[2:])
+
+				img21 = pyrB[scale - 1][orient]
+				img22 = pyrB[scale][orient]
+				img21 = F.interpolate(img21, size=img22.shape[2:])
+
+				stsimg2.append(self.compute_cross_term(img11, img12, img21, img22))
+
+		# Accross orientation, same scale
+		for scale in range(1, len(pyrA) - 1):
+			for orient in range(Nor - 1):
+				img11 = pyrA[scale][orient]
+				img21 = pyrB[scale][orient]
+
+				for orient2 in range(orient + 1, Nor):
+					img13 = pyrA[scale][orient2]
+					img23 = pyrB[scale][orient2]
+					stsimg2.append(self.compute_cross_term(img11, img13, img21, img23))
+
+		return torch.mean(torch.stack(stsimg2), dim=0).T # [BatchSize, FeatureSize]
+
+	def pooling(self, img1, img2):
+		# img1 = torch.abs(img1)
+		# img2 = torch.abs(img2)
+		tmp = self.compute_L_term(img1, img2) * self.compute_C_term(img1, img2) * self.compute_C01_term(img1,
+																										img2) * self.compute_C10_term(
+			img1, img2)
+		return tmp ** 0.25
+
+	def compute_L_term(self, img1, img2):
+		# expectation over a small window
+		mu1 = torch.mean(img1, dim=[1, 2, 3])
+		mu2 = torch.mean(img2, dim=[1, 2, 3])
+
+		Lmap = (2 * mu1 * mu2 + self.C) / (mu1 * mu1 + mu2 * mu2 + self.C)
+		return Lmap
+
+	def compute_C_term(self, img1, img2):
+		mu1 = torch.mean(img1, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+		mu2 = torch.mean(img2, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+
+		sigma1_sq = torch.mean((img1 - mu1) ** 2, dim=[1, 2, 3])
+		sigma1 = torch.sqrt(sigma1_sq)
+		sigma2_sq = torch.mean((img2 - mu2) ** 2, dim=[1, 2, 3])
+		sigma2 = torch.sqrt(sigma2_sq)
+
+		Cmap = (2 * sigma1 * sigma2 + self.C) / (sigma1_sq + sigma2_sq + self.C)
+		return Cmap
+
+	def compute_C01_term(self, img1, img2):
+		img11 = img1[..., :-1]
+		img12 = img1[..., 1:]
+		img21 = img2[..., :-1]
+		img22 = img2[..., 1:]
+
+		mu11 = torch.mean(img11, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+		mu12 = torch.mean(img12, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+		mu21 = torch.mean(img21, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+		mu22 = torch.mean(img22, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+
+		sigma11_sq = torch.mean((img11 - mu11) ** 2, dim=[1, 2, 3])
+		sigma12_sq = torch.mean((img12 - mu12) ** 2, dim=[1, 2, 3])
+		sigma21_sq = torch.mean((img21 - mu21) ** 2, dim=[1, 2, 3])
+		sigma22_sq = torch.mean((img22 - mu22) ** 2, dim=[1, 2, 3])
+
+		sigma1_cross = torch.mean((img11 - mu11) * (img12 - mu12), dim=[1, 2, 3])
+		sigma2_cross = torch.mean((img21 - mu21) * (img22 - mu22), dim=[1, 2, 3])
+
+		rho1 = (sigma1_cross + self.C) / (torch.sqrt(sigma11_sq * sigma12_sq) + self.C)
+		rho2 = (sigma2_cross + self.C) / (torch.sqrt(sigma21_sq * sigma22_sq) + self.C)
+
+		C01map = 1 - 0.5 * torch.abs(rho1 - rho2)
+
+		return C01map
+
+	def compute_C10_term(self, img1, img2):
+		img11 = img1[:, :, :-1, :]
+		img12 = img1[:, :, 1:, :]
+		img21 = img2[:, :, :-1, :]
+		img22 = img2[:, :, 1:, :]
+
+		mu11 = torch.mean(img11, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+		mu12 = torch.mean(img12, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+		mu21 = torch.mean(img21, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+		mu22 = torch.mean(img22, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+
+		sigma11_sq = torch.mean((img11 - mu11) ** 2, dim=[1, 2, 3])
+		sigma12_sq = torch.mean((img12 - mu12) ** 2, dim=[1, 2, 3])
+		sigma21_sq = torch.mean((img21 - mu21) ** 2, dim=[1, 2, 3])
+		sigma22_sq = torch.mean((img22 - mu22) ** 2, dim=[1, 2, 3])
+
+		sigma1_cross = torch.mean((img11 - mu11) * (img12 - mu12), dim=[1, 2, 3])
+		sigma2_cross = torch.mean((img21 - mu21) * (img22 - mu22), dim=[1, 2, 3])
+
+		rho1 = (sigma1_cross + self.C) / (torch.sqrt(sigma11_sq) * torch.sqrt(sigma12_sq) + self.C)
+		rho2 = (sigma2_cross + self.C) / (torch.sqrt(sigma21_sq) * torch.sqrt(sigma22_sq) + self.C)
+
+		C10map = 1 - 0.5 * torch.abs(rho1 - rho2)
+
+		return C10map
+
+	def compute_cross_term(self, img11, img12, img21, img22):
+		mu11 = torch.mean(img11, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+		mu12 = torch.mean(img12, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+		mu21 = torch.mean(img21, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+		mu22 = torch.mean(img22, dim=[1, 2, 3]).reshape(-1, 1, 1, 1)
+
+		sigma11_sq = torch.mean((img11 - mu11) ** 2, dim=[1, 2, 3])
+		sigma12_sq = torch.mean((img12 - mu12) ** 2, dim=[1, 2, 3])
+		sigma21_sq = torch.mean((img21 - mu21) ** 2, dim=[1, 2, 3])
+		sigma22_sq = torch.mean((img22 - mu22) ** 2, dim=[1, 2, 3])
+		sigma1_cross = torch.mean((img11 - mu11) * (img12 - mu12), dim=[1, 2, 3])
+		sigma2_cross = torch.mean((img21 - mu21) * (img22 - mu22), dim=[1, 2, 3])
+
+		rho1 = (sigma1_cross + self.C) / (torch.sqrt(sigma11_sq * sigma12_sq) + self.C)
+		rho2 = (sigma2_cross + self.C) / (torch.sqrt(sigma21_sq * sigma22_sq) + self.C)
+
+		Crossmap = 1 - 0.5 * torch.abs(rho1 - rho2)
+		return Crossmap
 
 	def _STSIM_with_mask(self, img, mask):
 		'''
