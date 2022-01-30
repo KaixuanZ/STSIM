@@ -483,7 +483,7 @@ class STSIM_M(torch.nn.Module):
 		if self.mode == 0:  # STSIM_Mf
 			pred = self.linear(torch.abs(X1 - X2))  # [N, dim]
 			pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
-			return torch.sqrt(pred)  # [N, 1]
+			return torch.sqrt(pred) - torch.abs(torch.sum(self.linear.bias))  # [N, 1]
 		elif self.mode == 1:  # 3-layer neural net STSIM-NN
 			pred = F.relu(self.hidden(torch.abs(X1 - X2)))
 			pred = torch.sigmoid(self.predict(pred))
@@ -493,7 +493,7 @@ class STSIM_M(torch.nn.Module):
 			return torch.sigmoid(pred)
 		elif self.mode == 3:  # STSIM (diagonal) data driven STSIM-Md
 			pred = self.linear(torch.abs(X1 - X2)**2)  # [N, 1]
-			return torch.sqrt(pred)
+			return torch.sqrt(pred) - torch.abs(torch.sum(self.linear.bias))
 
 if __name__ == '__main__':
 	def test1():
