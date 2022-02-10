@@ -2,11 +2,14 @@ import argparse
 import numpy as np
 from utils.dataset import Dataset
 from utils.parse_config import parse_config
-
+from metrics.STSIM_VGG import *
+from metrics.DISTS_pt import *
 import torch
 import torch.nn.functional as F
 import scipy.stats
 import os
+import time
+from tqdm import tqdm
 
 def SpearmanCoeff(X, Y):
     '''
@@ -68,62 +71,7 @@ def evaluation(pred, Y):
     res['KRCC'] = float("{:.3f}".format(KCoeff))
     return res
 
-import matplotlib.pyplot as plt
-def plot(X, Y, mask, figname='tmp'):
-    X = X.squeeze(-1)
-    X = X.detach().cpu().numpy()
-    Y = Y.detach().cpu().numpy()
-    mask = mask.detach().cpu().numpy()
-
-    y = X
-    x = Y
-    for i in set(mask):
-        plt.scatter(x[mask==i],y[mask==i], label='cls'+str(int(i)))
-    plt.xlabel('label')
-    plt.ylabel('prediction')
-
-    PCoeff = scipy.stats.pearsonr(x,y)[0]
-    SCoeff = scipy.stats.spearmanr(x, y).correlation
-    KCoeff = scipy.stats.kendalltau(x, y).correlation
-    plt.legend()
-    plt.title("PLCC={:.3f},SRCC={:.3f},KRCC={:.3f}".format(PCoeff,SCoeff,KCoeff))
-    plt.savefig(figname + '.eps')
-    plt.close()
-
-def plot2(X1, X2, Y, mask, figname='tmp'):
-    X1 = X1.squeeze(-1)
-    X1 = X1.detach().cpu().numpy()
-    X2 = X2.squeeze(-1)
-    X2 = X2.detach().cpu().numpy()
-    Y = Y.detach().cpu().numpy()
-    mask = mask.detach().cpu().numpy()
-    for i in set(mask):
-        x1 = X1[mask==i]
-        x2 = X2[mask==i]
-        y = Y[mask==i]
-        plt.scatter(x1,y,color='r')
-        plt.scatter(x2,y,color='b')
-        plt.xlabel('prediction')
-        plt.ylabel('label')
-        plt.savefig('_'.join([figname,'class'+str(int(i))+'.png']))
-        plt.close()
-
-def save_as_np(pred, Y):
-    path = 'STSIM-M-global'
-    # os.mkdir(path)
-    np.save(os.path.join(path,'pred_M.npy'), pred.detach().cpu().numpy())
-    np.save(os.path.join(path,'label.npy'), Y.detach().cpu().numpy())    # label
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    # parser.add_argument("--config", type=str, default="config/test_DISTS_global.cfg", help="path to data config file")
-    parser.add_argument("--config", type=str, default="config/test_STSIM_global.cfg", help="path to data config file")
-    parser.add_argument("--batch_size", type=int, default=4080, help="size of each image batch")
-    opt = parser.parse_args()
-    print(opt)
-
-    config = parse_config(opt.config)
+def test_model(config, batch_size):
     print(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -132,7 +80,7 @@ if __name__ == '__main__':
     label_file = config['label_file']
     dist = config['dist']
     testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
-    test_loader = torch.utils.data.DataLoader(testset, batch_size=opt.batch_size)
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=batch_size)
 
     # read train config
     import json
@@ -140,66 +88,44 @@ if __name__ == '__main__':
         train_config = json.load(f)
         print(train_config)
 
-    X1, X2, Y, mask, pt = next(iter(test_loader))
-
-    # test with different model
-    if config['model'] == 'PSNR':
-        tmp = torch.tensor([torch.max(X1[i]) for i in range(X1.shape[0])])
-        pred = 10 * torch.log10(tmp * tmp / torch.mean((X1 - X2) ** 2, dim=[1, 2, 3]))
-        print("PSNR test:", evaluation(pred, Y))
-
-    elif config['model'] == 'STSIM':
-        from metrics.STSIM import *
-        X1 = X1.to(device).double()
-        X2 = X2.to(device).double()
-        Y = Y.to(device).double()
-
-        filter = train_config['filter']
-        m_g = Metric(filter, device=device)
-
-        # pred = m_g.STSIM1(X1, X2)
-        # print("STSIM-1 test:", evaluation(pred, Y))
-        #
-        # pred = m_g.STSIM2(X1, X2)
-        # print("STSIM-2 test:", evaluation(pred, Y))
-
-        path = train_config['weights_path'].split('/')
-        path[-1] = 'STSIM-M.pt'
-        weight_M = torch.load('/'.join(path))
-        pred = m_g.STSIM_M(X1, X2, weight=weight_M)
-        print("STSIM-M test:", evaluation(pred, Y))  #  {'PLCC': 0.874, 'SRCC': 0.834, 'KRCC': 0.73}
-        save_as_np(pred, Y)
-        # plot(pred,Y,mask,'STSIM-M_table3')
-
-        path = train_config['weights_path'].split('/')
-        path[-1] = 'STSIM-I.pt'
-        weight_I = torch.load('/'.join(path))
-        pred = m_g.STSIM_I(X1, X2, weight=weight_I)
-        print("STSIM-I test:", evaluation(pred, Y))  #  {'PLCC': 0.894, 'SRCC': 0.852, 'KRCC': 0.736}
-        #plot(pred,Y,'STSIM-I')
-
-        model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), filter = filter, device = device)
-        model.load_state_dict(torch.load(train_config['weights_path']))
-        model.to(device).double()
-        pred = model(X1, X2)
-        print("STSIM-M (trained) test:", evaluation(pred, Y)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
-        #import pdb;pdb.set_trace()
-        # save_as_np(pred, Y)
-        #plot2(pred_STSIM_2, pred, Y ,mask,'metric_pred')
-
+    if config['model'] == 'STSIM':  # STSIM-VGG randomized weight
+        model = STSIM_VGG(train_config['dim']).to(device)
     elif config['model'] == 'DISTS':
-        test_loader = torch.utils.data.DataLoader(testset, batch_size=60)
-        from metrics.DISTS_pt import *
-
+        # model = DISTS(weights_path='weights/weights_DISTS_original.pt').to(device)
         model = DISTS(weights_path=config['weights_path']).to(device)
-        pred, Y, mask = [], [], []
-        for X1_test, X2_test, Y_test, _, _ in test_loader:
-            X1_test = F.interpolate(X1_test, size=256).float().to(device)
-            X2_test = F.interpolate(X2_test, size=256).float().to(device)
-            Y_test = Y_test.to(device)
-            pred.append(model(X1_test, X2_test))
-            Y.append(Y_test)
-        pred = torch.cat(pred, dim=0).detach()
-        Y = torch.cat(Y, dim=0).detach()
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=45)
+    pred, Y, mask = [], [], []
+    inference_time = []
+    for X1_test, X2_test, Y_test, _, _ in test_loader:
+        t1 = time.time()
+        X1_test = F.interpolate(X1_test, size=256).float().to(device)
+        X2_test = F.interpolate(X2_test, size=256).float().to(device)
+        Y_test = Y_test.to(device)
+        pred.append(model(X1_test, X2_test))
+        Y.append(Y_test)
+        t2 = time.time()
+        if config['model'] == 'STSIM':
+            print("STSIM-VGG test time:", t2 - t1)
+        if config['model'] == 'DISTS':
+            print("DISTS test time:", t2 - t1)
+        inference_time.append(t2-t1)
+    pred = torch.cat(pred, dim=0).detach()
+    Y = torch.cat(Y, dim=0).detach()
+    print("inference time per batch:", np.mean(inference_time[1:]))
+    if config['model'] == 'STSIM':
+        print("STSIM test:", evaluation(pred, Y))
+    if config['model'] == 'DISTS':
+        print("DISTS test:", evaluation(pred,Y))
 
-        print("DISTS test:", evaluation(pred, Y))  # {'PLCC': 0.9574348579861184, 'SRCC': 0.9213941434033467, 'KRCC': 0.8539799877032255}
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    # parser.add_argument("--config", type=str, default="config/test_DISTS_global.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/test_STSIM_global.cfg", help="path to data config file")
+    parser.add_argument("--batch_size", type=int, default=45, help="size of each image batch")
+    opt = parser.parse_args()
+    print(opt)
+    config = parse_config(opt.config)
+
+    # now only for testing speed
+    with torch.no_grad():
+        test_model(config, opt.batch_size)

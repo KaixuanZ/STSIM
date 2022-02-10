@@ -350,6 +350,23 @@ class Metric:
 		else:
 			return res
 
+	def STSIM_VGG(self, img):
+		# fast implementation
+		coeffs = self.fb.build(img)
+		f = []
+		# single subband statistics
+		for c in coeffs:
+			mean = torch.mean(c, dim = [2,3])
+			var = torch.var(c, dim = [2,3])
+			f.append(mean)
+			f.append(var)
+
+			c = c - mean.unsqueeze(-1).unsqueeze(-1)
+			f.append(torch.mean(c[:, :, :-1, :] * c[:, :, 1:, :], dim=[2, 3]) / (var + self.C))
+			f.append(torch.mean(c[:, :, :, :-1] * c[:, :, :, 1:], dim=[2, 3]) / (var + self.C))
+		# import pdb;pdb.set_trace()
+		return torch.cat(f, dim=-1) # [BatchSize, FeatureSize]
+
 	def STSIM(self, img, mask=None):
 		'''
 		:param img: [N,C=1,H,W]
@@ -360,7 +377,9 @@ class Metric:
 		if mask is not None:
 			return self._STSIM_with_mask(img, mask)
 		if self.filter=='VGG':
-			img = F.interpolate(img, size=256).to(self.device)
+			# img = F.interpolate(img, size=256).to(self.device)
+			return self.STSIM_VGG(img)
+
 
 		coeffs = self.fb.build(img)
 		if self.filter == 'SCF':	# magnitude of coeff
