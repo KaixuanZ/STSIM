@@ -5,6 +5,7 @@ import itertools
 from utils.parse_config import parse_config
 import torch.optim as optim
 import numpy as np
+from utils.dataset_macro import Dataset
 
 from metrics.STSIM import *
 
@@ -42,15 +43,15 @@ def train(config):
     alpha = float(config['alpha'])
 
     # STSIM features
-    data = torch.load(dataset_dir).double().to(device)
-    data_train = data[:300]
-    data_valid = data[300:400]
-    data_test = data[400:]
+    dataset = Dataset(data_dir='/dataset/MacroTextures500', mode='train')
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size=500)
+    data_train = next(iter(train_loader))
+    data_train = data_train.to(device).float()
 
-    generate_triplet(data_train)
-    import pdb;pdb.set_trace()
+    # generate_triplet(data_train)
+    # import pdb;pdb.set_trace()
     # learnable parameters
-    model = STSIM_M([82*3, 10], device=device).double().to(device)
+    model = STSIM_M([82*3, 10], device=device).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
     valid_perform = []
@@ -63,11 +64,12 @@ def train(config):
         optimizer.step()
         if i % evaluation_interval == 0:
             print('training iter ' + str(i) + ' :', loss.item())
-        if i % evaluation_interval == 0:  # validation
-            anchor_valid, pos_valid, neg_valid = generate_triplet(data_valid)
-            pred = model(anchor_valid, pos_valid) - model(anchor_valid, neg_valid) + alpha
-            loss = torch.mean(F.relu(pred))
-            print('validation iter ' + str(i) + ' :', loss.item())
+        # if i % evaluation_interval == 0:  # validation
+        #     # anchor_valid, pos_valid, neg_valid = generate_triplet(data_valid)
+        #     anchor_valid, pos_valid, neg_valid = generate_triplet(data_train)
+        #     pred = model(anchor_valid, pos_valid) - model(anchor_valid, neg_valid) + alpha
+        #     loss = torch.mean(F.relu(pred))
+        #     print('validation iter ' + str(i) + ' :', loss.item())
             valid_perform.append(loss.item())
         if i % checkpoint_interval == 0:  # save weights
             torch.save(model.state_dict(), os.path.join(config['weights_folder'], 'epoch_' + str(i).zfill(4) + '.pt'))
