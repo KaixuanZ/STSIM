@@ -7,11 +7,12 @@ import torchvision.transforms as transforms
 import sys
 sys.path.append('..')
 from metrics.STSIM import *
-
+from tqdm import tqdm
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, data_split='train', format = '.png'):
         self.format = format
+        self.data_split = data_split
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         clean_names = lambda x: [i for i in x if i[0] != '.']
 
@@ -44,14 +45,18 @@ class Dataset(torch.utils.data.Dataset):
                 dist_img = dist_img.repeat(3, 1, 1)
             elif dist_img.shape[0] > 3:
                 dist_img = dist_img[:3]
-
-        C,H,W = dist_img.shape
-        data = torch.zeros(3*3*C,1,256,256)
-        for c in range(C):
-            for i in range(3):
-                for j in range(3):
-                    data[(i*3+j)*3+c,0] = dist_img[c,(H-256)*i//2:(H-256)*i//2+256,(W-256)*j//2:(W-256)*j//2+256]
-
+        if self.data_split == 'train':
+            C,H,W = dist_img.shape
+            data = torch.zeros(3*3*C,1,256,256)
+            for c in range(C):
+                for i in range(3):
+                    for j in range(3):
+                        data[(i*3+j)*3+c,0] = dist_img[c,(H-256)*i//2:(H-256)*i//2+256,(W-256)*j//2:(W-256)*j//2+256]
+        if self.data_split == 'test':
+            data = dist_img.unsqueeze(1)
+            # import pdb;
+            #
+            # pdb.set_trace()
         # STSIM-M features
         res = self.m.STSIM(data.double().to(self.device))
         return res.reshape(-1,82*3)
@@ -60,16 +65,15 @@ class Dataset(torch.utils.data.Dataset):
 if __name__ == "__main__":
     from torch.autograd import Variable
 
-    image_dir = '/dataset/MacroTextures500/'
+    image_dir = '/dataset/MacroSyn30000/'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = Dataset(data_dir=image_dir)
+    dataset = Dataset(data_dir=image_dir, data_split='test')
 
-    batch_size = 500  # the actually batchsize <= total images in dataset
+    batch_size = 1000  # the actually batchsize <= total images in dataset
     data_generator = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
 
-    for X in data_generator:
+    res = []
+    for X in tqdm(data_generator):
         X = X.to(device)
-        import pdb;
-
-        pdb.set_trace()
-        torch.load(X,'tmp.pt')
+        res.append(X)
+    torch.save(torch.cat(res),'../data/MacroSyn30000_SCF.pt')
