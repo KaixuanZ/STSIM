@@ -70,7 +70,7 @@ def threshold(config):
     plt.xlabel('metric value')
     plt.ylabel('probability')
     plt.xlim([0,20])
-    plt.savefig('tmp2.eps')
+    plt.savefig('tmp2.png')
     import pdb;pdb.set_trace()
 
 

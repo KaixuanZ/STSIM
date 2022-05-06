@@ -1,10 +1,10 @@
 import argparse
 import os
-
+import json
 from torchvision.utils import save_image
 from tqdm import tqdm
 from utils.dataset import Dataset
-
+from PIL import Image, ImageOps
 from metrics.STSIM import *
 from metrics.STSIM_VGG import *
 
@@ -40,8 +40,35 @@ def extract_features_VGG(data_dir, data_split, batch_size, device):
             pred.append(feats)
         # import pdb;
         # pdb.set_trace()
-    return torch.cat(pred)
+    return torch.cat(pred).T    # [gallery size, query size]
 
+def retrieval(model, gallery, query):
+    preds = []
+    for i in tqdm(range(query.shape[0])):
+        pred = model(gallery, query[i].repeat(gallery.shape[0], 1))
+        preds.append(pred)
+    preds = torch.stack(preds)
+    preds = preds.squeeze(-1)
+    return preds.T
+
+def viz(gallary_json, query_json, gallary_idx, query_idx):
+    with open(gallary_json) as f:
+        gallary_path = json.load(f)
+    with open(query_json) as f:
+        query_path = json.load(f)
+
+    if not os.path.isdir('tmp'):
+        os.mkdir('tmp')
+    for i in range(len(gallary_idx)):
+        img_g = Image.open(gallary_path[gallary_idx[i]])
+        img_g = transforms.ToTensor()(img_g)
+        C,H,W = img_g.shape
+        img_g = img_g[:,H//2-128:H//2+128, W//2-128:W//2+128]
+        img_q = Image.open(query_path[query_idx[i]])
+        img_q = transforms.ToTensor()(img_q)
+        save_image(torch.stack([img_g,img_q]), os.path.join('tmp', str(i).zfill(6)+'.png'))
+
+@torch.no_grad()
 def test_retrieval(config):
     import json
     with open(config) as f:
@@ -65,23 +92,24 @@ def test_retrieval(config):
     # data_gallery = extract_features_SCF('/dataset/MacroSyn30000', device)
     # data_query = extract_features_VGG('/dataset/MacroTextures3K', data_split='train', batch_size=12, device=device)
     # torch.save(data_query, 'data/MacroTextures3K_VGG.pt')
-    data_gallery = extract_features_VGG('/dataset/MacroSyn30000', data_split='test', batch_size=50 ,device=device)
-    torch.save(data_gallery, 'data/MacroSyn30000_VGG.pt')
-    import pdb;
-    pdb.set_trace()
-    preds = []
-    model = STSIM_M([82 * 3, 10], device=device).to(device)
-    model.load_state_dict(torch.load('weights/STSIM_macro_02212022/epoch_0180.pt'))
-    for i in tqdm(range(100)):
-        pred = model(data_gallery, data_query[i].repeat(data_gallery.shape[0], 1))
-        # pred = data_gallery - data_query[i].repeat(data_gallery.shape[0], 1)
-        pred = (pred**2).sum(1)
-        preds.append(pred)
+    # data_gallery = extract_features_VGG('/dataset/MacroSyn30000', data_split='test', batch_size=50 ,device=device)
+    # torch.save(data_gallery, 'data/MacroSyn30000_VGG.pt')
 
+    original = torch.load('data/MacroTextures3K_VGG.pt')
+    original = original[:,4,:]
+    synthesized = torch.load('data/MacroSyn30000_VGG.pt')
 
-    for ref_idx in range(len(preds)):
-        val_min, idx_min = torch.topk(preds[ref_idx].reshape(-1), 5, largest=False)
-        save_res(query, gallery, torch.tensor([ref_idx]).to(device), idx_min, os.path.join(output_dir,str(ref_idx).zfill(4)+'.png'))
+    # model = STSIM_M([82 * 3, 10], device=device).to(device)
+    model = STSIM_M([5900, 10], device=device).to(device)
+    model.load_state_dict(torch.load('weights/STSIM_macro_05052022/epoch_0180.pt'))
+    preds = retrieval(model, original, synthesized)
+    gallary_idx1, query_idx1 = torch.where(preds<2)
+    gallary_idx2, query_idx2 = torch.where(preds>10)
+
+    viz('data/MacroTextures3K.json', 'data/MacroSyn30000.json', gallary_idx1, query_idx1)
+    # for ref_idx in range(len(preds)):
+    #     val_min, idx_min = torch.topk(preds[ref_idx].reshape(-1), 5, largest=False)
+    #     save_res(query, gallery, torch.tensor([ref_idx]).to(device), idx_min, os.path.join(output_dir,str(ref_idx).zfill(4)+'.png'))
     import pdb;
     pdb.set_trace()
 

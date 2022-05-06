@@ -8,6 +8,7 @@ import sys
 sys.path.append('..')
 from metrics.STSIM import *
 from tqdm import tqdm
+import json
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, data_split='train', format = '.png'):
@@ -18,6 +19,9 @@ class Dataset(torch.utils.data.Dataset):
 
         self.dist_img_paths = [os.path.join(data_dir, img) for img in clean_names(os.listdir(data_dir))]
         self.dist_img_paths = sorted(self.dist_img_paths)
+
+        with open('../data/MacroTextures3K.json', 'w') as json_file:
+            json.dump(self.dist_img_paths, json_file)
 
     def __len__(self):
         return len(self.dist_img_paths)
@@ -51,17 +55,17 @@ class Dataset(torch.utils.data.Dataset):
 if __name__ == "__main__":
     from torch.autograd import Variable
 
-    image_dir = '/dataset/MacroSyn30000/'
+    image_dir = '/dataset/MacroTextures3K/'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = Dataset(data_dir=image_dir, data_split='test')
 
     batch_size = 1000  # the actually batchsize <= total images in dataset
     data_generator = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
+    import pdb;
 
+    pdb.set_trace()
     res = []
     for X in tqdm(data_generator):
         X = X.to(device)
         res.append(X)
-        import pdb;
-        pdb.set_trace()
     torch.save(torch.cat(res),'../data/MacroSyn30000_SF.pt')
