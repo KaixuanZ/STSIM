@@ -18,7 +18,7 @@ class Dataset(torch.utils.data.Dataset):
 
         self.dist_img_paths = [os.path.join(data_dir, img) for img in clean_names(os.listdir(data_dir))]
         self.dist_img_paths = sorted(self.dist_img_paths)
-        self.m = Metric('SCF', device)
+        self.m = Metric('SF', device)
 
         '''
         if data_split == 'train':
@@ -54,9 +54,8 @@ class Dataset(torch.utils.data.Dataset):
                         data[(i*3+j)*3+c,0] = dist_img[c,(H-256)*i//2:(H-256)*i//2+256,(W-256)*j//2:(W-256)*j//2+256]
         if self.data_split == 'test':
             data = dist_img.unsqueeze(1)
-            # import pdb;
-            #
-            # pdb.set_trace()
+        # import pdb;
+        # pdb.set_trace()
         # STSIM-M features
         res = self.m.STSIM(data.double().to(self.device))
         return res.reshape(-1,82*3)
@@ -76,4 +75,4 @@ if __name__ == "__main__":
     for X in tqdm(data_generator):
         X = X.to(device)
         res.append(X)
-    torch.save(torch.cat(res),'../data/MacroSyn30000_SCF.pt')
+    torch.save(torch.cat(res),'../data/MacroSyn30000_SF.pt')

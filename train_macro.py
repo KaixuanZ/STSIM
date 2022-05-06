@@ -43,36 +43,40 @@ def train(config):
     alpha = float(config['alpha'])
 
     # STSIM features
-    dataset = Dataset(data_dir='/dataset/MacroTextures500', mode='train')
-    train_loader = torch.utils.data.DataLoader(dataset, batch_size=500)
-    data_train = next(iter(train_loader))
-    data_train = data_train.to(device).float()
-
+    # dataset = Dataset(data_dir='/dataset/MacroTextures500', mode='train')
+    # train_loader = torch.utils.data.DataLoader(dataset, batch_size=500)
+    # data_train = next(iter(train_loader))
+    data = torch.load(dataset_dir)
+    N = 2500
+    data_train = data[:N].to(device).float()
+    data_valid = data[N:].to(device).float()
     # generate_triplet(data_train)
-    # import pdb;pdb.set_trace()
     # learnable parameters
-    model = STSIM_M([82*3, 10], device=device).to(device)
+    # model = STSIM_M([82*3, 10], device=device).to(device)
+    model = STSIM_M([5900, 10], device=device).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
-
+    batch_size = N//5
     valid_perform = []
+    import pdb;pdb.set_trace()
     for i in range(epochs):
-        anchor_train, pos_train, neg_train = generate_triplet(data_train)
-        pred = model(anchor_train, pos_train) - model(anchor_train, neg_train) + alpha
-        loss = torch.mean(F.relu(pred))
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        if i % evaluation_interval == 0:
-            print('training iter ' + str(i) + ' :', loss.item())
-        # if i % evaluation_interval == 0:  # validation
-        #     # anchor_valid, pos_valid, neg_valid = generate_triplet(data_valid)
-        #     anchor_valid, pos_valid, neg_valid = generate_triplet(data_train)
-        #     pred = model(anchor_valid, pos_valid) - model(anchor_valid, neg_valid) + alpha
-        #     loss = torch.mean(F.relu(pred))
-        #     print('validation iter ' + str(i) + ' :', loss.item())
-            valid_perform.append(loss.item())
-        if i % checkpoint_interval == 0:  # save weights
-            torch.save(model.state_dict(), os.path.join(config['weights_folder'], 'epoch_' + str(i).zfill(4) + '.pt'))
+        for j in range(N//batch_size):
+            # train
+            anchor_train, pos_train, neg_train = generate_triplet(data_train[batch_size*j:batch_size*(j+1)])
+            pred = model(anchor_train, pos_train) - model(anchor_train, neg_train) + alpha
+            loss = torch.mean(F.relu(pred))
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        with torch.no_grad():
+            # valid
+            if i % evaluation_interval == 0:
+                anchor_valid, pos_valid, neg_valid = generate_triplet(data_valid)
+                pred_valid = model(anchor_valid, pos_valid) - model(anchor_valid, neg_valid) + alpha
+                loss_valid = torch.mean(F.relu(pred_valid))
+                print('validation iter ' + str(i) + ' :', loss_valid.item())
+                valid_perform.append(loss_valid.item())
+            if i % checkpoint_interval == 0:  # save weights
+                torch.save(model.state_dict(), os.path.join(config['weights_folder'], 'epoch_' + str(i).zfill(4) + '.pt'))
 
     idx = valid_perform.index(min(valid_perform))
     print('best model')

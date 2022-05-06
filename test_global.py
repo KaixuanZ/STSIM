@@ -163,19 +163,19 @@ if __name__ == '__main__':
         # pred = m_g.STSIM2(X1, X2)
         # print("STSIM-2 test:", evaluation(pred, Y))
 
-        path = train_config['weights_path'].split('/')
-        path[-1] = 'STSIM-M.pt'
-        weight_M = torch.load('/'.join(path))
-        pred = m_g.STSIM_M(X1, X2, weight=weight_M)
-        print("STSIM-M test:", evaluation(pred, Y))  #  {'PLCC': 0.874, 'SRCC': 0.834, 'KRCC': 0.73}
-        save_as_np(pred, Y)
-        # plot(pred,Y,mask,'STSIM-M_table3')
-
-        path = train_config['weights_path'].split('/')
-        path[-1] = 'STSIM-I.pt'
-        weight_I = torch.load('/'.join(path))
-        pred = m_g.STSIM_I(X1, X2, weight=weight_I)
-        print("STSIM-I test:", evaluation(pred, Y))  #  {'PLCC': 0.894, 'SRCC': 0.852, 'KRCC': 0.736}
+        # path = train_config['weights_path'].split('/')
+        # path[-1] = 'STSIM-M.pt'
+        # weight_M = torch.load('/'.join(path))
+        # pred = m_g.STSIM_M(X1, X2, weight=weight_M)
+        # print("STSIM-M test:", evaluation(pred, Y))  #  {'PLCC': 0.874, 'SRCC': 0.834, 'KRCC': 0.73}
+        # save_as_np(pred, Y)
+        # # plot(pred,Y,mask,'STSIM-M_table3')
+        #
+        # path = train_config['weights_path'].split('/')
+        # path[-1] = 'STSIM-I.pt'
+        # weight_I = torch.load('/'.join(path))
+        # pred = m_g.STSIM_I(X1, X2, weight=weight_I)
+        # print("STSIM-I test:", evaluation(pred, Y))  #  {'PLCC': 0.894, 'SRCC': 0.852, 'KRCC': 0.736}
         #plot(pred,Y,'STSIM-I')
 
         model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), filter = filter, device = device)
@@ -183,7 +183,7 @@ if __name__ == '__main__':
         model.to(device).double()
         pred = model(X1, X2)
         print("STSIM-M (trained) test:", evaluation(pred, Y)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
-        #import pdb;pdb.set_trace()
+        import pdb;pdb.set_trace()
         # save_as_np(pred, Y)
         #plot2(pred_STSIM_2, pred, Y ,mask,'metric_pred')
 
