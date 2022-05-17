@@ -64,7 +64,7 @@ class Dataset(torch.utils.data.Dataset):
 if __name__ == "__main__":
     from torch.autograd import Variable
 
-    image_dir = '/dataset/MacroSyn30000/'
+    image_dir = '/dataset/generated900K/'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = Dataset(data_dir=image_dir, data_split='test')
 

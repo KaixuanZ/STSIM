@@ -64,13 +64,14 @@ def threshold(config):
     dis_pos = torch.cat(dis_pos)
     dis_neg = torch.cat(dis_neg)
 
-    n_neg, bins_neg, _ = plt.hist(dis_neg.cpu().numpy(), 100, density=True, facecolor='r', alpha=0.75, label='different')
     n_pos, bins_pos, _ = plt.hist(dis_pos.cpu().numpy(), 100, density=True, facecolor='g', alpha=0.75, label='identical')
+    n_neg, bins_neg, _ = plt.hist(dis_neg.cpu().numpy(), 100, density=True, facecolor='r', alpha=0.75,
+                                  label='different')
     plt.legend()
     plt.xlabel('metric value')
     plt.ylabel('probability')
     plt.xlim([0,20])
-    plt.savefig('tmp2.png')
+    plt.savefig('tmp1.png')
     import pdb;pdb.set_trace()
 
 

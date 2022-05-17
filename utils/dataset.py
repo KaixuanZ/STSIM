@@ -20,8 +20,8 @@ class Dataset(torch.utils.data.Dataset):
         self.dist_img_paths = [os.path.join(data_dir, img) for img in clean_names(os.listdir(data_dir))]
         self.dist_img_paths = sorted(self.dist_img_paths)
 
-        with open('../data/MacroTextures3K.json', 'w') as json_file:
-            json.dump(self.dist_img_paths, json_file)
+        # with open('../data/MacroTextures3K.json', 'w') as json_file:
+        #     json.dump(self.dist_img_paths, json_file)
 
     def __len__(self):
         return len(self.dist_img_paths)
