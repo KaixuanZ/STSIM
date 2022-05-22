@@ -1,6 +1,5 @@
-from PIL import Image, ImageOps
-import numpy as np
-import pandas as pd
+from PIL import Image
+
 import os
 import torch
 import torchvision.transforms as transforms
@@ -8,7 +7,6 @@ import sys
 sys.path.append('..')
 from metrics.STSIM import *
 from tqdm import tqdm
-import json
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, data_split='train', format = '.png'):
@@ -53,7 +51,6 @@ class Dataset(torch.utils.data.Dataset):
 
 
 if __name__ == "__main__":
-    from torch.autograd import Variable
 
     image_dir = '/dataset/MacroTextures3K/'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -68,4 +65,4 @@ if __name__ == "__main__":
     for X in tqdm(data_generator):
         X = X.to(device)
         res.append(X)
-    torch.save(torch.cat(res),'../data/MacroSyn30000_SF.pt')
+    torch.save(torch.cat(res),'../data/MacroSyn30000_SCF.pt')

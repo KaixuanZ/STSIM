@@ -1,6 +1,5 @@
-from PIL import Image, ImageOps
-import numpy as np
-import pandas as pd
+from PIL import Image
+
 import os
 import torch
 import torchvision.transforms as transforms
@@ -8,6 +7,7 @@ import sys
 sys.path.append('..')
 from metrics.STSIM import *
 from tqdm import tqdm
+
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, data_dir, data_split='train', format = '.png'):
@@ -18,8 +18,12 @@ class Dataset(torch.utils.data.Dataset):
 
         self.dist_img_paths = [os.path.join(data_dir, img) for img in clean_names(os.listdir(data_dir))]
         self.dist_img_paths = sorted(self.dist_img_paths)
-        self.m = Metric('SF', device)
+        self.m = Metric('SCF', self.device)
 
+        # import json
+        # with open('MacroSyn30000.json', 'w') as json_file:
+        #     json.dump(self.dist_img_paths, json_file)
+        # import pdb;pdb.set_trace()
         '''
         if data_split == 'train':
             self.dist_img_paths = self.dist_img_paths[:300]
@@ -54,19 +58,18 @@ class Dataset(torch.utils.data.Dataset):
                         data[(i*3+j)*3+c,0] = dist_img[c,(H-256)*i//2:(H-256)*i//2+256,(W-256)*j//2:(W-256)*j//2+256]
         if self.data_split == 'test':
             data = dist_img.unsqueeze(1)
-        # import pdb;
-        # pdb.set_trace()
+
         # STSIM-M features
         res = self.m.STSIM(data.double().to(self.device))
+        # import pdb;pdb.set_trace()
         return res.reshape(-1,82*3)
 
 
 if __name__ == "__main__":
-    from torch.autograd import Variable
 
-    image_dir = '/dataset/generated900K/'
+    image_dir = '/dataset/MacroTextures3K/'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    dataset = Dataset(data_dir=image_dir, data_split='test')
+    dataset = Dataset(data_dir=image_dir, data_split='train')
 
     batch_size = 1000  # the actually batchsize <= total images in dataset
     data_generator = torch.utils.data.DataLoader(dataset, batch_size=batch_size)
