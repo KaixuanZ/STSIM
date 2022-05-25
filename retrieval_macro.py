@@ -139,14 +139,14 @@ def test_retrieval(config):
     # gallary_idx1, query_idx1 = torch.where(preds<3)
     # viz('/dataset/MacroFeatures/MacroTextures3K.json', '/dataset/MacroFeatures/MacroSyn30000.json', gallary_idx1, query_idx1, output_dir='threshold3')
     #
-    # gallary_idx1, query_idx1 = torch.where(preds<4)
+    # gallary_idx1, query_idx1 = torch.where((preds<4)&(preds>=3))
     # viz('/dataset/MacroFeatures/MacroTextures3K.json', '/dataset/MacroFeatures/MacroSyn30000.json', gallary_idx1[::5], query_idx1[::5], output_dir='threshold4')
     #
-    # gallary_idx1, query_idx1 = torch.where(preds<4.5)
+    # gallary_idx1, query_idx1 = torch.where((preds<4.5)&(preds>=4))
     # viz('/dataset/MacroFeatures/MacroTextures3K.json', '/dataset/MacroFeatures/MacroSyn30000.json', gallary_idx1[::25], query_idx1[::25], output_dir='threshold4-5')
-
-    # gallary_idx1, query_idx1 = torch.where(preds<5)
-    # viz('/dataset/MacroFeatures/MacroTextures3K.json', '/dataset/MacroFeatures/MacroSyn30000.json', gallary_idx1[::25], query_idx1[::100], output_dir='threshold5')
+    #
+    gallary_idx1, query_idx1 = torch.where((preds<5)&(preds>=4.5))
+    viz('/dataset/MacroFeatures/MacroTextures3K.json', '/dataset/MacroFeatures/MacroSyn30000.json', gallary_idx1[::100], query_idx1[::100], output_dir='threshold5')
 
     import pdb;
     pdb.set_trace()
