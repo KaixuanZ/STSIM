@@ -90,14 +90,17 @@ class STSIM_VGG(torch.nn.Module):
         # import pdb;pdb.set_trace()
         return torch.cat(f, dim=-1)  # [BatchSize, FeatureSize]
 
-    def forward(self, x, y, require_grad=False):
-        if require_grad:
-            feats0 = self.forward_once(x)
-            feats1 = self.forward_once(y)
-        else:
-            with torch.no_grad():
+    def forward(self, x, y, require_grad=False, feat_extraction=True):
+        if feat_extraction:
+            if require_grad:
                 feats0 = self.forward_once(x)
                 feats1 = self.forward_once(y)
+            else:
+                with torch.no_grad():
+                    feats0 = self.forward_once(x)
+                    feats1 = self.forward_once(y)
+        else:
+            feats0, feats1 = x, y
         pred = self.linear(torch.abs(feats0 - feats1))  # [N, dim]
         pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
         return torch.sqrt(pred) - torch.abs(torch.sum(self.linear.bias))  # [N, 1]
