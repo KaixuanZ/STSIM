@@ -18,28 +18,27 @@ def train(config):
         os.mkdir(config['weights_folder'])
 
     dataset_dir = config['dataset_dir']
+    batch_size = int(config['train_batch_size'])
     evaluation_interval = int(config['checkpoint_interval'])
     checkpoint_interval = int(config['checkpoint_interval'])
+    dim = config['dim']
     lr = float(config['lr'])
     epochs = int(config['epochs'])
     alpha = float(config['alpha'])
 
-    image_dir = '/dataset/MacroTextures3K/'
     import json
     with open('data/grouping_sets.json') as f:
         grouping_sets = json.load(f)
     with open('data/grouping_imgnames.json') as f:
         grouping_imgnames = json.load(f)
-    dataset_wg = Dataset_wgroup(image_dir, grouping_imgnames, grouping_sets)
-    batch_size = 128  # the actually batchsize <= total images in dataset
+    dataset_wg = Dataset_wgroup(dataset_dir, grouping_imgnames, grouping_sets)
     data_generator = torch.utils.data.DataLoader(dataset_wg, batch_size=batch_size, num_workers=12, shuffle=True)
 
-
     # learnable parameters
-    model = STSIM_VGG([5900, 10], grayscale=False).to(device)
+    model = STSIM_VGG(dim, grayscale=False).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    valid_perform = []
-
+    # valid_perform = []
+    # import pdb;pdb.set_trace()
     for i in tqdm(range(epochs)):
         running_loss = []
         running_loss1 = []
@@ -54,16 +53,17 @@ def train(config):
             f_pos2 = model.forward_once(pos2.to(device))
             f_wpos = model.forward_once(wpos.to(device))
             # import pdb;pdb.set_trace()
-            loss1 = F.relu(model(f_anchor1, f_pos1, feat_extraction=False) - model(f_anchor1, f_neg, feat_extraction=False) + alpha)
-            loss2 = F.relu(-model(f_anchor2, f_pos2, feat_extraction=False) + model(f_anchor2, f_wpos, feat_extraction=False) - alpha/2)
-            loss3 = F.relu(model(f_anchor1, f_pos1, feat_extraction=False) - model(f_anchor1, f_wpos, feat_extraction=False) + alpha)
-            loss4 = F.relu(model(f_anchor2, f_pos2, feat_extraction=False) - model(f_anchor2, f_neg, feat_extraction=False) + alpha)
-            loss = torch.mean((loss1 + loss2 + loss3 + loss4)/4)
+            loss1 = F.relu(model(f_anchor1, f_pos1) - model(f_anchor1, f_neg) + alpha)
+            loss2 = F.relu(-model(f_anchor2, f_pos2) + model(f_anchor2, f_wpos) - alpha/2)
+            loss3 = F.relu(model(f_anchor1, f_pos1) - model(f_anchor1, f_wpos) + alpha)
+            loss4 = F.relu(model(f_anchor2, f_pos2) - model(f_anchor2, f_neg) + alpha)
+            loss = torch.mean(loss1 + loss2 + loss3 + loss4)
             running_loss.append(loss.item())
             running_loss1.append(loss1.mean().item())
             running_loss2.append(loss2.mean().item())
             running_loss3.append(loss3.mean().item())
             running_loss4.append(loss4.mean().item())
+            # import pdb;pdb.set_trace()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

@@ -65,28 +65,35 @@ class Dataset(torch.utils.data.Dataset):
         return res.reshape(-1,82*3)
 
 class Dataset_wgroup(torch.utils.data.Dataset):
-    def __init__(self, data_dir, grouping_imgnames, grouping_sets, crop_size=256):
+    def __init__(self, data_dir, grouping_imgnames, grouping_sets, crop_size=256, test_mode=False):
         clean_names = lambda x: [i for i in x if i[0] != '.']
         self.data_dir = data_dir
+        self.test_mode = test_mode
         self.g_imgnames = grouping_imgnames
         self.g_imgpaths = list(self.g_imgnames.keys())
         self.g_imgpaths = [os.path.join(data_dir, n) for n in self.g_imgpaths]
 
         self.g_sets = grouping_sets
 
-        self.imgpaths = [img for img in clean_names(os.listdir(data_dir))]
-        self.imgpaths = set(self.imgpaths) - set(self.g_imgpaths)
-        self.imgpaths = [os.path.join(data_dir, path) for path in self.imgpaths]
+        self.imgpaths = [os.path.join(data_dir, img) for img in clean_names(os.listdir(data_dir))]
+        self.imgpaths = list(set(self.imgpaths) - set(self.g_imgpaths))
 
         self.imgpaths_all = self.imgpaths + self.g_imgpaths
         # import pdb;pdb.set_trace()
         self.generate_offsets()
 
         # can also use transforms.Compose
-        self.transforms = torch.nn.Sequential(
-            transforms.RandomCrop(crop_size),
-            transforms.Normalize((0.0, 0.0, 0.0), (255.0, 255.0, 255.0)),
-        )
+        if self.test_mode:
+            self.transforms = torch.nn.Sequential(
+                transforms.CenterCrop(crop_size),
+                transforms.Normalize((0.0, 0.0, 0.0), (255.0, 255.0, 255.0)),
+            )
+            self.imgpaths = self.imgpaths_all
+        else:   # train mode
+            self.transforms = torch.nn.Sequential(
+                transforms.RandomCrop(crop_size),
+                transforms.Normalize((0.0, 0.0, 0.0), (255.0, 255.0, 255.0)),
+            )
 
     def generate_offsets(self):
         # for neg samples
@@ -101,6 +108,8 @@ class Dataset_wgroup(torch.utils.data.Dataset):
         img_path = self.imgpaths[item]
         img1 = read_image(img_path).float()
         anchor1 = self.transforms(img1)
+        if self.test_mode:
+            return anchor1
         pos1 = self.transforms(img1)
 
         # negative
