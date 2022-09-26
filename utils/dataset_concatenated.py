@@ -14,7 +14,7 @@ class Dataset(torch.utils.data.Dataset):
         self.format = format
 
         clean_names = lambda x: [i for i in x if i[0] != '.']
-        self.dist_img_paths = [os.path.join(self.dist_dir, img).replace('\\','/') for img in clean_names(os.listdir(self.dist_dir))]
+        self.dist_img_paths = [os.path.join(self.dist_dir, img) for img in clean_names(os.listdir(self.dist_dir))]
         #self.dist_img_paths = clean_names(self.dist_img_paths)
 
     def __len__(self):
@@ -25,11 +25,10 @@ class Dataset(torch.utils.data.Dataset):
         dist_img = Image.open(dist_img_path)
         #print(dist_img_path)
         dist_img = transforms.ToTensor()(dist_img)
-        tmp = dist_img_path.split(r"\\")[-1]
+
         tmp = dist_img_path.split('/')[-1]  #file name
-        tmp = tmp.split('.')[0]
-        tmp = tmp.split('_')
-        t, d = tmp[0], tmp[1]
+        tmp = tmp.split('.')[0].split('_')
+        t, d = tmp[0], tmp[2]
         y = self.labels[int(d), int(0)]
 
         ref_img_path = os.path.join(self.ref_dir, t + self.format)
@@ -52,7 +51,7 @@ class Dataset(torch.utils.data.Dataset):
 if __name__ == "__main__":
     from torch.autograd import Variable
 
-    image_dir = '../concatenated/'
+    image_dir = '/dataset/databases_jyl/concatenated img/'
     label_file = 'label.xlsx'
     dist_img_folder = 'test'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
