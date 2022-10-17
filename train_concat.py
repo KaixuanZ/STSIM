@@ -54,8 +54,8 @@ def extract_feats(model, data_loader):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="config/train_STSIM_global_concat.cfg", help="path to data config file")
-    # parser.add_argument("--config", type=str, default="config/train_DISTS_global.cfg", help="path to data config file")
+    # parser.add_argument("--config", type=str, default="config/train_STSIM_global_concat.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/train_DISTS_global_concat.cfg", help="path to data config file")
 
     opt = parser.parse_args()
     print(opt)
@@ -159,9 +159,76 @@ if __name__ == '__main__':
         from metrics.DISTS_pt import *
         model = DISTS().to(device)
         optimizer = optim.Adam([model.alpha, model.beta], lr=lr)
+        for i in range(epochs):
+            running_loss = []
+            for X1_train, X2_train, Y_train, mask_train in train_loader:
+                X1_train = F.interpolate(X1_train, size=256).float().to(device)
+                X2_train = F.interpolate(X2_train, size=256).float().to(device)
+                Y_train = Y_train.float().to(device)
+                mask_train = mask_train.float().to(device)
+                pred = model(X1_train, X2_train)
+                if loss_type == 'SRCC':
+                    if mode == 'local':
+                        loss = -spearmanr_l(pred.unsqueeze(1).T, Y_train.unsqueeze(1).T, mask_train)  # min neg ==> max
+                    if mode == 'global':
+                        loss = -spearmanr_g(pred.unsqueeze(1).T, Y_train.unsqueeze(1).T) # min neg ==> max
+                elif loss_type == 'PLCC':
+                    if mode=='local':
+                        loss = -PearsonCoeff_l(pred.unsqueeze(1), Y_train, mask_train)  # min neg ==> max
+                    if mode=='global':
+                        loss = -PearsonCoeff_g(pred.unsqueeze(1), Y_train)  # min neg ==> max
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
+            running_loss.append(loss.item())
+            writer.add_scalar('Loss/train', np.mean(running_loss), i)
+            if i % 10 == 0:
+                print('training iter ' + str(i) + ' :', np.mean(running_loss))
 
+            with torch.no_grad():
+                if i % evaluation_interval == 0:  # validation
+                    running_loss = []
+                    for X1_valid, X2_valid, Y_valid, mask_valid in valid_loader:
+                        X1_valid = F.interpolate(X1_valid, size=256).float().to(device)
+                        X2_valid = F.interpolate(X2_valid, size=256).float().to(device)
+                        Y_valid = Y_valid.float().to(device)
+                        mask_valid = mask_valid.float().to(device)
+                        pred = model(X1_valid, X2_valid)
+                        if loss_type == 'SRCC':
+                            if mode == 'local':
+                                loss = -spearmanr_l(pred.unsqueeze(1).T, Y_valid.unsqueeze(1).T, mask_valid)  # min neg ==> max
+                            if mode == 'global':
+                                loss = -spearmanr_g(pred.unsqueeze(1).T, Y_valid.unsqueeze(1).T)  # min neg ==> max
+                        elif loss_type == 'PLCC':
+                            if mode == 'local':
+                                loss = -PearsonCoeff_l(pred.unsqueeze(1), Y_valid, mask_valid)  # min neg ==> max
+                            if mode=='global':
+                                loss = -PearsonCoeff_g(pred.unsqueeze(1), Y_valid)  # min neg ==> max
+                        running_loss.append(loss.item())
+                        writer.add_scalar('Loss/valid', np.mean(running_loss), i)
+                    print('validation iter ' + str(i) + ' :', np.mean(running_loss))
+                    pred, Y, mask = [], [], []
+                    for X1_test, X2_test, Y_test, mask_test in test_loader:
+                        X1_test = F.interpolate(X1_test, size=256).float().to(device)
+                        X2_test = F.interpolate(X2_test, size=256).float().to(device)
+                        Y_test = Y_test.float().to(device)
+                        mask_test = mask_test.float().to(device)
+                        pred_test = model(X1_test, X2_test)
+                        pred.append(pred_test)
+                        Y.append(Y_test)
+                        mask.append(mask_test)
+                    pred = torch.cat(pred, dim=0)
+                    Y = torch.cat(Y, dim=0)
+                    mask_test = torch.cat(mask, dim=0)
+                    if mode == 'local':
+                        print(evaluation_l(pred.unsqueeze(1), Y, mask))
+                    if mode == 'global':
+                        print(evaluation_g(pred.unsqueeze(1), Y))
 
+            if i % checkpoint_interval == 0:
+                torch.save(model.state_dict(),
+                           os.path.join(config['weights_folder'], 'epoch_' + str(i).zfill(4) + '.pt'))
 
     # save config
     import json
