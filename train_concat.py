@@ -54,8 +54,8 @@ def extract_feats(model, data_loader):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--config", type=str, default="config/train_STSIM_global_concat.cfg", help="path to data config file")
-    parser.add_argument("--config", type=str, default="config/train_DISTS_global_concat.cfg", help="path to data config file")
+    parser.add_argument("--config", type=str, default="config/train_STSIM_global_concat.cfg", help="path to data config file")
+    # parser.add_argument("--config", type=str, default="config/train_DISTS_global_concat.cfg", help="path to data config file")
 
     opt = parser.parse_args()
     print(opt)
