@@ -98,7 +98,8 @@ class STSIM_VGG(torch.nn.Module):
                 feats1 = self.forward_once(y)
         pred = self.linear(torch.abs(feats0 - feats1))  # [N, dim]
         pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
-        return torch.sqrt(pred) - torch.abs(torch.sum(self.linear.bias))  # [N, 1]
+        # import pdb;pdb.set_trace()
+        return torch.sqrt(pred - torch.sum(self.linear.bias**2))  # [N, 1]
 
 def prepare_image(image, resize=True):
     if resize and min(image.size)>256:
