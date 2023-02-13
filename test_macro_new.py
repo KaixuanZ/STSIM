@@ -9,12 +9,12 @@ from metrics.STSIM_VGG import *
 
 clean_names = lambda x: [i for i in x if i[0] != '.']
 
-def extract_feats(model, filepath = '/home/kaixuan/Downloads/texture10k', device='cuda'):
-    imgfiles = clean_names(sorted(os.listdir(filepath)))
+def extract_feats(model, data_folder = '/home/kaixuan/Downloads/texture10k', device='cuda'):
+    imgfiles = clean_names(sorted(os.listdir(data_folder)))
 
     feats = []
     for f in tqdm(imgfiles[:10]):
-        imgpath = os.path.join(filepath, f)
+        imgpath = os.path.join(data_folder, f)
         img = Image.open(imgpath)
         img = transforms.ToTensor()(img)
         img = img.unsqueeze(0).to(device)
@@ -27,6 +27,7 @@ def extract_feats(model, filepath = '/home/kaixuan/Downloads/texture10k', device
 
 
 if __name__ == '__main__':
+    data_folder = '/home/kaixuan/Downloads/texture10k'
     output_dir = 'res'
     if not os.path.isdir(output_dir):
         os.mkdir(output_dir)
@@ -38,7 +39,7 @@ if __name__ == '__main__':
     model.to(device).double()
 
     # return STSIM-VGG featues and the idx-filename
-    feats, img_fnames = extract_feats(model)
+    feats, img_fnames = extract_feats(model, data_folder)
 
     # save results
     path_pt = os.path.join(output_dir, 'feats.pt')
