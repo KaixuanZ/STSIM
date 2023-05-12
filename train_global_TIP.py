@@ -1,12 +1,10 @@
 import argparse
 import os
 import numpy as np
-import random
 
 from test_global import evaluation
 from test_global import PearsonCoeff
-from utils.dataset import Dataset
-from utils.dataset import Dataset_TIP_all
+from utils.dataset import Dataset_TIP
 from utils.parse_config import parse_config
 
 import torch
@@ -32,9 +30,8 @@ def moving_average(loss):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="config/train_STSIM_global.cfg", help="path to data config file")
-    parser.add_argument("--n_textures", type=int, default=10, help="number of textures for training, 10 or 22")
     # parser.add_argument("--config", type=str, default="config/train_DISTS_global.cfg", help="path to data config file")
-    # import pdb;pdb.set_trace()
+
     opt = parser.parse_args()
     print(opt)
     config = parse_config(opt.config)
@@ -45,35 +42,26 @@ if __name__ == '__main__':
         os.mkdir(config['weights_folder'])
 
     # read training data
-    dataset_dir = config['dataset_dir']
-    label_file = config['label_file']
-    dist = config['train']
+    dataset_dir = '/home/kaixuan/Desktop/new_data'
+    label_file = 'labels_global_v2.xlsx'
+    dist = 'test'
     shuffle = bool(int(config['shuffle']))
     train_batch_size = int(config['train_batch_size'])
-    if opt.n_textures == 10:
-        trainset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
-    elif opt.n_textures == 22:
-        trainset = Dataset_TIP_all(data_dir=dataset_dir, label_file=label_file, dist=dist)
+    trainset = Dataset_TIP(data_dir=dataset_dir, label_file=label_file, dist=dist)
     train_loader = torch.utils.data.DataLoader(trainset, batch_size=train_batch_size, shuffle=shuffle)
 
     # read validation data
-    dist = config['valid']
-    valid_batch_size = int(config['valid_batch_size'])
-    if opt.n_textures == 10:
-        validset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
-    elif opt.n_textures == 22:
-        validset = Dataset_TIP_all(data_dir=dataset_dir, label_file=label_file, dist=dist)
-    valid_loader = torch.utils.data.DataLoader(validset, batch_size=valid_batch_size, shuffle=shuffle)
+    # dist = config['valid']
+    # valid_batch_size = int(config['valid_batch_size'])
+    # validset = Dataset_TIP(data_dir=dataset_dir, label_file=label_file, dist=dist)
+    # valid_loader = torch.utils.data.DataLoader(validset, batch_size=valid_batch_size, shuffle=shuffle)
 
     # read test data
-    if config['model'] == 'STSIM':
-        dist = config['test']
-        test_batch_size = int(config['test_batch_size'])
-        if opt.n_textures == 10:
-            testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
-        elif opt.n_textures == 22:
-            testset = Dataset_TIP_all(data_dir=dataset_dir, label_file=label_file, dist=dist)
-        test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size, shuffle=shuffle)
+    # if config['model'] == 'STSIM':
+    #     dist = config['test']
+    #     test_batch_size = int(config['test_batch_size'])
+    #     testset = Dataset_TIP(data_dir=dataset_dir, label_file=label_file, dist=dist)
+    #     test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size, shuffle=shuffle)
 
     epochs = int(config['epochs'])
     evaluation_interval = int(config['evaluation_interval'])
@@ -100,47 +88,38 @@ if __name__ == '__main__':
                 X2 = torch.cat(X2, dim=0)
                 Y = torch.cat(Y, dim=0)
                 return X1, X2, Y
-
-
-            print('generating training set')
             X1_train, X2_train, Y_train = load_data(train_loader)
-            print(X1_train.shape[0])
-            print('generating validation set')
-            X1_valid, X2_valid, Y_valid = load_data(valid_loader)
-            print(X1_valid.shape[0])
-            print('generating test set')
-            X1_test, X2_test, Y_test = load_data(test_loader)
-            print(X1_test.shape[0])
+            # X1_valid, X2_valid, Y_valid = load_data(valid_loader)
+            # X1_test, X2_test, Y_test = load_data(test_loader)
         else:
             print('generating training set')
-            X1_train, X2_train, Y_train, mask_train, pt_train = next(iter(train_loader))
-            print(X1_train.shape[0])
-            print('generating validation set')
-            X1_valid, X2_valid, Y_valid, mask_valid, pt_valid = next(iter(valid_loader))
-            print(X1_valid.shape[0])
+            X1_train, X2_train, Y_train, mask_train = next(iter(train_loader))
+            # print('generating validation set')
+            # X1_valid, X2_valid, Y_valid, mask_valid, pt_valid = next(iter(valid_loader))
             print('generating test set')
-            X1_test, X2_test, Y_test, _, pt_test = next(iter(test_loader))
-            print(X1_test.shape[0])
+            # X1_test, X2_test, Y_test, _, pt_test = next(iter(test_loader))
 
             # STSIM-M features
             X1_train = m.STSIM(X1_train.double().to(device))
             X2_train = m.STSIM(X2_train.double().to(device))
-            X1_valid = m.STSIM(X1_valid.double().to(device))
-            X2_valid = m.STSIM(X2_valid.double().to(device))
+            # X1_valid = m.STSIM(X1_valid.double().to(device))
+            # X2_valid = m.STSIM(X2_valid.double().to(device))
             Y_train = Y_train.to(device)
-            Y_valid = Y_valid.to(device)
+            # Y_valid = Y_valid.to(device)
 
             # collect all data and estimate STSIM-M and STSIM-I
-            X1 = torch.cat((X1_train, X1_valid))
-            mask = torch.cat((mask_train, mask_valid))
-            X_train = [X1[mask == i][0:1] for i in set(mask.detach().cpu().numpy())]
-            mask_I = [mask[mask == i][0:1] for i in set(mask.detach().cpu().numpy())]
-            X_train.append(X2_train)
-            X_train.append(X2_valid)
-            mask_I.append(mask_train)
-            mask_I.append(mask_valid)
-            X_train = torch.cat(X_train)
-            mask_I = torch.cat(mask_I)
+            # X1 = torch.cat((X1_train, X1_valid))
+            # X1 = X1_train
+            # mask = torch.cat((mask_train, mask_valid))
+            # mask = mask_train
+            # X_train = [X1[mask == i][0:1] for i in set(mask.detach().cpu().numpy())]
+            # mask_I = [mask[mask == i][0:1] for i in set(mask.detach().cpu().numpy())]
+            # X_train.append(X2_train)
+            # X_train.append(X2_valid)
+            # mask_I.append(mask_train)
+            # mask_I.append(mask_valid)
+            X_train = X1_train
+            mask_I = mask_train
 
             # STSIM-M
             weight_M = m.STSIM_M(X_train)
@@ -148,7 +127,7 @@ if __name__ == '__main__':
             # STSIM-I
             weight_I = m.STSIM_I(X_train, mask=mask_I)
             torch.save(weight_I, os.path.join(config['weights_folder'], 'STSIM-I.pt'))
-
+        import pdb;pdb.set_trace()
         mode = int(config['mode'])
         # learnable parameters
         model = STSIM_M(config['dim'], mode, device).double().to(device)
@@ -176,7 +155,7 @@ if __name__ == '__main__':
             if i % checkpoint_interval == 0:  # save weights
                 torch.save(model.state_dict(),
                            os.path.join(config['weights_folder'], 'epoch_' + str(i).zfill(4) + '.pt'))
-
+        # import pdb;pdb.set_trace()
         idx = valid_perform.index(max(valid_perform))
         print('best model')
         print('epoch:', idx * evaluation_interval)
@@ -192,7 +171,7 @@ if __name__ == '__main__':
         pred = model(X1_test, X2_test)
         test = evaluation(pred, Y_test)
         print('performance on test set:', test)
-        # import pdb;pdb.set_trace()
+
     elif config['model'] == 'DISTS':
         # model
         from metrics.DISTS_pt import *

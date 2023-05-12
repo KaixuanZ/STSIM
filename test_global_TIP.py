@@ -1,13 +1,15 @@
 import argparse
 import numpy as np
-from utils.dataset import Dataset
-from utils.dataset import Dataset_TIP_all
+from utils.dataset import Dataset_TIP
 from utils.parse_config import parse_config
 
 import torch
 import torch.nn.functional as F
 import scipy.stats
 import os
+from tqdm import tqdm
+
+from torchvision import transforms
 
 def SpearmanCoeff(X, Y):
     '''
@@ -109,6 +111,31 @@ def plot2(X1, X2, Y, mask, figname='tmp'):
         plt.savefig('_'.join([figname,'class'+str(int(i))+'.png']))
         plt.close()
 
+def plot3(pred, Y, mask, figname='tmp'):
+    pred = pred.detach().cpu().numpy()
+    Y = Y.detach().cpu().numpy()
+    mask = mask.detach().cpu().numpy()
+
+    for i in set(mask):
+        plt.scatter(pred[mask==i],Y[mask==i])
+        plt.xlabel('prediction')
+        plt.ylabel('label')
+        plt.savefig('_'.join([figname,'class'+str(int(i))+'.png']))
+        plt.close()
+
+def plot4(pred, Y, mask, figname='tmp'):
+    pred = pred.detach().cpu().numpy()
+    Y = Y.detach().cpu().numpy()
+    mask = mask.detach().cpu().numpy()
+
+    for i in set(mask):
+        plt.scatter(pred[mask==i],Y[mask==i])
+        plt.xlabel('prediction')
+        plt.ylabel('label')
+    plt.savefig(figname+'.png')
+    plt.close()
+
+
 def save_as_np(pred, Y):
     path = 'STSIM-M-global'
     # os.mkdir(path)
@@ -120,7 +147,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # parser.add_argument("--config", type=str, default="config/test_DISTS_global.cfg", help="path to data config file")
     parser.add_argument("--config", type=str, default="config/test_STSIM_global.cfg", help="path to data config file")
-    parser.add_argument("--n_textures", type=int, default=10, help="number of textures for training, 10 or 22")
     parser.add_argument("--batch_size", type=int, default=4080, help="size of each image batch")
     opt = parser.parse_args()
     print(opt)
@@ -136,87 +162,124 @@ if __name__ == '__main__':
         print(train_config)
 
     # read data
-    dataset_dir = train_config['dataset_dir']
-    label_file = train_config['label_file']
-    dist = train_config['test']
-    # testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
-    if opt.n_textures == 10:
-        testset = Dataset(data_dir=dataset_dir, label_file=label_file, dist=dist)
-    elif opt.n_textures == 22:
-        testset = Dataset_TIP_all(data_dir=dataset_dir, label_file=label_file, dist=dist)
+    dataset_dir = '/home/kaixuan/Desktop/new_data'
+    # label_file = 'labels_local.xlsx'
+    # label_file = 'labels_global.xlsx'
+    label_file = 'labels_global_v2.xlsx'
+    dist = 'test'
+
+    testset = Dataset_TIP(data_dir=dataset_dir, label_file=label_file, dist=dist)
     test_loader = torch.utils.data.DataLoader(testset, batch_size=opt.batch_size)
-    X1, X2, Y, mask, pt = next(iter(test_loader))
+    X1, X2, Y, mask = next(iter(test_loader))
 
     # test with different model
-    if config['model'] == 'PSNR':
-        tmp = torch.tensor([torch.max(X1[i]) for i in range(X1.shape[0])])
-        pred = 10 * torch.log10(tmp * tmp / torch.mean((X1 - X2) ** 2, dim=[1, 2, 3]))
-        print("PSNR test:", evaluation(pred, Y))
 
-    elif config['model'] == 'STSIM':
+
+    # tmp = torch.tensor([torch.max(X1[i]) for i in range(X1.shape[0])])
+    # pred = 10 * torch.log10(tmp * tmp / torch.mean((X1 - X2) ** 2, dim=[1, 2, 3]))
+    # print("PSNR test:", evaluation(pred, Y))
+    #
+    #
+    # from metrics.SSIM import ssim
+    # pred = ssim(X1,X2)
+    # print("SSIM test:", evaluation(pred, Y))
+    #
+    # from ssim import SSIM
+    # trans = transforms.ToPILImage()
+    # X1_tmp = (X1*255).int().squeeze(1).detach().cpu()
+    # X2_tmp = (X2*255).int().squeeze(1).detach().cpu()
+    # pred = []
+    # for i in tqdm(range(X1_tmp.shape[0])):
+    #     pred.append(SSIM(trans(X1_tmp[i])).cw_ssim_value(trans(X2_tmp[i])))
+    # # import pdb;pdb.set_trace()
+    # print("CW-SSIM test:", evaluation(torch.tensor(pred), Y))
+
+    if config['model'] == 'STSIM':
         from metrics.STSIM import *
         X1 = X1.to(device).double()
         X2 = X2.to(device).double()
         Y = Y.to(device).double()
 
+        # filter = 'SF'
+        # filter = 'SCF'
         filter = train_config['filter']
         m_g = Metric(filter, device=device)
 
         # pred = m_g.STSIM1(X1, X2)
         # print("STSIM-1 test:", evaluation(pred, Y))
-        #
-        # pred = m_g.STSIM2(X1, X2)
+
+        # pred = []
+        # for i in tqdm(range(X1.shape[0]//10)):
+        #     pred.append(m_g.STSIM2(X1[i*10:(i+1)*10], X2[i*10:(i+1)*10]))
+        # pred = torch.cat(pred)
         # print("STSIM-2 test:", evaluation(pred, Y))
 
-        # path = train_config['weights_path'].split('/')
-        # path[-1] = 'STSIM-M.pt'
-        # weight_M = torch.load('/'.join(path))
+        # if filter == 'SCF':
+        #     weight_M = torch.load('weights/TIP_SCF/STSIM-M.pt')
+        # else:
+        #     weight_M = torch.load('weights/TIP_SF/STSIM-M.pt')
+
         # pred = m_g.STSIM_M(X1, X2, weight=weight_M)
         # print("STSIM-M test:", evaluation(pred, Y))  #  {'PLCC': 0.874, 'SRCC': 0.834, 'KRCC': 0.73}
         # save_as_np(pred, Y)
-        # # plot(pred,Y,mask,'STSIM-M_table3')
-        #
-        # path = train_config['weights_path'].split('/')
-        # path[-1] = 'STSIM-I.pt'
-        # weight_I = torch.load('/'.join(path))
+        # plot(pred,Y,mask,'STSIM-M_table3')
+
+        # if filter == 'SCF':
+        #     weight_I = torch.load('weights/TIP_SCF/STSIM-I.pt')
+        # else:
+        #     weight_I = torch.load('weights/TIP_SF/STSIM-I.pt')
         # pred = m_g.STSIM_I(X1, X2, weight=weight_I)
         # print("STSIM-I test:", evaluation(pred, Y))  #  {'PLCC': 0.894, 'SRCC': 0.852, 'KRCC': 0.736}
-        # #plot(pred,Y,'STSIM-I')
-        #
+        #plot(pred,Y,'STSIM-I')
 
+        # import pdb;pdb.set_trace()
         model = STSIM_M(train_config['dim'], mode=int(train_config['mode']), filter = filter, device = device)
-
         model.load_state_dict(torch.load(train_config['weights_path']))
-
         model.to(device).double()
         if filter=='VGG':
             pred = []
-            pred.append(model(X1[:45],X2[:45]))
-            pred.append(model(X1[45:],X2[45:]))
+            pred.append(model(X1[:54],X2[:54]))
+            pred.append(model(X1[54:],X2[54:]))
             pred = torch.cat(pred)
         else:
             pred = model(X1, X2)
-        # import pdb;pdb.set_trace()
-        plot(pred, Y, mask, 'metric_pred')
         print("STSIM-M (trained) test:", evaluation(pred, Y)) # for complex: {'PLCC': 0.983, 'SRCC': 0.979, 'KRCC': 0.944}
 
+        print(pred[45:80])
+        print(Y[45:80]/Y.max())
+        print(evaluation(pred[45:80], Y[45:80]))
         # save_as_np(pred, Y)
-        # plot2(pred_STSIM_2, pred, Y ,mask,'metric_pred')
-
+        import pdb;pdb.set_trace()
+        # mask = [[i]*9 for i in range(12)]
+        # mask = torch.tensor(mask)
+        # mask = mask.reshape(-1)
+        # plot4(pred, Y ,mask,'metric_pred_global')
     elif config['model'] == 'DISTS':
         test_loader = torch.utils.data.DataLoader(testset, batch_size=60)
         from metrics.DISTS_pt import *
 
         # import pdb;pdb.set_trace()
-        model = DISTS(weights_path=train_config['weights_path']).to(device)
+        model = DISTS(weights_path=os.path.join(train_config['weights_folder'],'epoch_0050.pt')).to(device)
         pred, Y, mask = [], [], []
-        for X1_test, X2_test, Y_test, _, _ in test_loader:
+        X1 = []
+        X2 = []
+        for X1_test, X2_test, Y_test, _ in test_loader:
             X1_test = F.interpolate(X1_test, size=256).float().to(device)
             X2_test = F.interpolate(X2_test, size=256).float().to(device)
             Y_test = Y_test.to(device)
             pred.append(model(X1_test, X2_test))
             Y.append(Y_test)
+            X1.append(X1_test)
+            X2.append(X2_test)
         pred = torch.cat(pred, dim=0).detach()
         Y = torch.cat(Y, dim=0).detach()
+        X1 = torch.cat(X1, dim=0)
+        X2 = torch.cat(X2, dim=0)
 
         print("DISTS test:", evaluation(pred, Y))  # {'PLCC': 0.9574348579861184, 'SRCC': 0.9213941434033467, 'KRCC': 0.8539799877032255}
+
+
+
+    # for i in range(12):
+    #     pred = model(X1[i*9:i*9+9], X2[i*9:i*9+9])
+    #     print(evaluation(pred, Y[i*9:i*9+9]))

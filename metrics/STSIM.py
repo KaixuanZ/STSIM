@@ -378,7 +378,6 @@ class Metric:
 
 		f = []
 		# single subband statistics
-
 		for c in self.fb.getlist(coeffs):
 			mean = torch.mean(c, dim = [1,2,3])
 			var = torch.var(c, dim = [1,2,3])
@@ -426,7 +425,7 @@ class Metric:
 				# the input are raw images, extract STSIM-M features
 				with torch.no_grad():
 					X1 = self.STSIM(X1)  # [N, dim of feature]
-			weight = X1.std(0)	#[dim of feature]
+			weight = X1.std(0) + 1e-20	#[dim of feature]
 			return weight
 
 	def STSIM_I(self, X1, X2=None, mask=None, weight=None):
@@ -442,7 +441,7 @@ class Metric:
 				X1_i = X1[mask==i]
 				X1_i = X1_i - X1_i.mean(0)	# substract intra-class mean [N, dim of feature]
 				var += (X1_i**2).sum(0)		# square sum	for all intra-class sample [dim of feature]
-			return torch.sqrt(var/X1.shape[0])
+			return torch.sqrt(var/X1.shape[0]) + 1e-20
 
 class STSIM_M(torch.nn.Module):
 	def __init__(self, dim, mode=0, filter=None, device=None):
@@ -458,6 +457,7 @@ class STSIM_M(torch.nn.Module):
 		self.filter = filter
 		if self.mode == 0:  	# factorization
 			self.linear = nn.Linear(dim[0], dim[1])
+			# self.linear = nn.Linear(dim[0], dim[1], bias=False)
 		elif self.mode == 1:  	# 3-layer neural net
 			self.hidden = nn.Linear(dim[0], dim[0])
 			self.predict = nn.Linear(dim[0], 1)
@@ -484,6 +484,8 @@ class STSIM_M(torch.nn.Module):
 			pred = self.linear(torch.abs(X1 - X2))  # [N, dim]
 			pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
 			return torch.sqrt(pred) - torch.abs(torch.sum(self.linear.bias))  # [N, 1]
+			# return torch.sqrt(pred)  # [N, 1]
+			# return torch.sqrt(pred)# [N, 1]
 		elif self.mode == 1:  # 3-layer neural net STSIM-NN
 			pred = F.relu(self.hidden(torch.abs(X1 - X2)))
 			pred = torch.sigmoid(self.predict(pred))
@@ -493,7 +495,11 @@ class STSIM_M(torch.nn.Module):
 			return torch.sigmoid(pred)
 		elif self.mode == 3:  # STSIM (diagonal) data driven STSIM-Md
 			pred = self.linear(torch.abs(X1 - X2)**2)  # [N, 1]
-			return torch.sqrt(pred) - torch.abs(torch.sum(self.linear.bias))
+			return torch.sqrt(pred) #- torch.abs(torch.sum(self.linear.bias))
+		elif self.mode == 4:
+			pred = self.linear(torch.abs(X1 - X2))  # [N, dim]
+			pred = torch.bmm(pred.unsqueeze(1), pred.unsqueeze(-1)).squeeze(-1)  # inner-prod
+			return self.scale(torch.sqrt(pred))  # [N, 1]
 
 if __name__ == '__main__':
 	def test1():
