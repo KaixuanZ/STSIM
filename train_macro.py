@@ -53,7 +53,8 @@ def train(config):
     # generate_triplet(data_train)
     # learnable parameters
     # model = STSIM_M([82*3, 10], device=device).to(device)
-    model = STSIM_M([5900, 10], device=device).to(device)
+    # model = STSIM_M([5900, 10], device=device).to(device)
+    model = STSIM_M([82+3, 10], device=device).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     batch_size = N//5
     valid_perform = []
